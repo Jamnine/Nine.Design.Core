@@ -43,11 +43,19 @@
 		<Reference Include="WindowsBase" />
 		<Reference Include="System.Xaml" />
 	</ItemGroup>
+	<ItemGroup>
+	  <None Remove="Resources\Fonts\NDCIcon.ttf" />
+	</ItemGroup>
 
 	<!-- NuGet 包引用（确保兼容多框架） -->
 	<ItemGroup>
 		<PackageReference Include="Panuon.WPF" Version="1.0.1" />
 		<PackageReference Include="Panuon.WPF.UI" Version="1.1.6.5" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Resource Include="Resources\Fonts\NDCIcon.ttf">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	</ItemGroup>
 
 </Project>

@@ -8,4 +8,9 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Nine.Design.Login\Nine.Design.Login.csproj" />
+    <ProjectReference Include="..\Nine.Design.UI\Nine.Design.UI.csproj" />
+  </ItemGroup>
+
 </Project>

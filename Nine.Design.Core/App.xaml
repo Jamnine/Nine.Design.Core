@@ -1,9 +1,24 @@
 ﻿<Application x:Class="Nine.Design.Core.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Nine.Design.Core"
-             StartupUri="MainWindow.xaml">
+             xmlns:pu="https://opensource.panuon.com/wpf-ui"
+             xmlns:local="clr-namespace:Nine.Design.Core">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 1. 引用 Panuon.WPF.UI 的核心样式文件（Default.xaml 或 Dark.xaml） -->
+                <!--    这个文件会一次性加载所有控件的样式，是最重要的一步 -->
+                <ResourceDictionary Source="pack://application:,,,/Panuon.WPF.UI;component/Control.xaml" />
+
+                <!-- 2. （可选）如果你还需要使用 Panuon.WPF 的基础控件，可以引用它 -->
+                <!-- <ResourceDictionary Source="pack://application:,,,/Panuon.WPF;component/Resources/Styles/Default.xaml" /> -->
+
+                <!-- 3. 引用你自己的资源字典或定义 -->
+                <ResourceDictionary>
+                    <!-- 确保你的字体路径是正确的 -->
+                    <FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>
+                </ResourceDictionary>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
