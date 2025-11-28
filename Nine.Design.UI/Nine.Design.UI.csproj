@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- 多目标框架：覆盖 .NET Framework 4.5~4.8 和 .NET 5.0+ Windows 专用框架 -->
+		<TargetFrameworks>net45;net46;net47;net48;net5.0-windows;net6.0-windows;net7.0-windows;net8.0-windows;net9.0-windows</TargetFrameworks>
+
+		<!-- 通用配置 -->
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<OutputType>Library</OutputType>
+		<LangVersion>10</LangVersion>
+		<!-- 若为应用程序请改为 WinExe -->
+		<UseWPF>true</UseWPF>
+		<!-- 对 .NET 5+ 自动引用 WPF 组件 -->
+	</PropertyGroup>
+
+	<!-- 针对 .NET Framework 4.5~4.8 手动引用 WPF 程序集 -->
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net45' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'net47' Or '$(TargetFramework)' == 'net48' ">
+		<Reference Include="PresentationCore" />
+		<Reference Include="PresentationFramework" />
+		<Reference Include="WindowsBase" />
+		<Reference Include="System.Xaml" />
+	</ItemGroup>
+
+	<!-- 条件关闭旧框架的 Nullable 特性（避免版本不兼容） -->
+	<PropertyGroup Condition=" '$(TargetFramework)' == 'net45' Or '$(TargetFramework)' == 'net46' Or '$(TargetFramework)' == 'net47' Or '$(TargetFramework)' == 'net48' ">
+		<Nullable>disable</Nullable>
+		<LangVersion>7.3</LangVersion>
+		<!-- 限制 C# 版本为 7.3（旧框架最大支持版本） -->
+	</PropertyGroup>
+
+	<!-- 针对 .NET 4.8 提升语言版本（若需启用部分新特性） -->
+	<PropertyGroup Condition=" '$(TargetFramework)' == 'net48' ">
+		<LangVersion>8.0</LangVersion>
+		<!-- .NET 4.8 可支持 C# 8.0 -->
+	</PropertyGroup>
+
+	<!-- 针对 .NET 5+ Windows 框架的配置 -->
+	<PropertyGroup Condition=" $(TargetFramework.Contains('-windows')) And !$(TargetFramework.StartsWith('net4')) ">
+		<LangVersion>latest</LangVersion>
+		<!-- 启用最新 C# 特性 -->
+	</PropertyGroup>
+
+	<!-- NuGet 包引用（确保兼容多框架） -->
+	<ItemGroup>
+		<PackageReference Include="Panuon.WPF" Version="1.0.1" />
+		<PackageReference Include="Panuon.WPF.UI" Version="1.1.6.5" />
+	</ItemGroup>
+
+</Project>

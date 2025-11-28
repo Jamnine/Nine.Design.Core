@@ -1,0 +1,77 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- 支持 .NET 4.5 到 .NET 9.0-windows（按顺序排列） -->
+		<TargetFrameworks>net4.5;net4.6;net4.7;net4.8;net5.0-windows;net6.0-windows;net7.0-windows;net8.0-windows;net9.0-windows;</TargetFrameworks>
+
+		<!-- 基础配置 -->
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<UseWPF>true</UseWPF>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<LangVersion>10</LangVersion>
+		<!-- .NET 4.5 最高支持 C# 5.0，此处按高版本框架兼容，编译时自动适配 -->
+
+		<!-- NuGet 包元数据（必填，方便引用） -->
+		<Version>1.0.0</Version>
+		<Title>Nine.Design.Login</Title>
+		<Authors>Jamnine 何拾玖</Authors>
+		<Product>Nine.Design</Product>
+		<RootNamespace>Nine.Design.Login</RootNamespace>
+		<Description>独立登录组件库，支持 WPF 登录界面、MVVM 逻辑、多框架兼容（.NET 4.5 ~ .NET 9.0）</Description>
+		<PackageTags>Login;WPF;MVVM;.NET45;.NET9</PackageTags>
+		<PackageOutputPath>$(SolutionDir)NuGetPackages</PackageOutputPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="Images\exit_1.png" />
+	  <None Remove="Images\exit_2.png" />
+	  <None Remove="Images\login_Button_1.png" />
+	  <None Remove="Images\login_Button_2.png" />
+	  <None Remove="Images\NumberNine.png" />
+	  <None Remove="Images\userbox_1.png" />
+	  <None Remove="Images\userbox_2.png" />
+	</ItemGroup>
+
+	<!-- 2. 跨框架依赖配置（按框架区分依赖） -->
+	<ItemGroup>
+		<!-- .NET 4.5 特有依赖（需引用低版本包） -->
+		<PackageReference Include="Newtonsoft.Json" Version="9.0.1" Condition="'$(TargetFramework)' == 'net45'">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<Reference Include="System.Net.Http" Condition="'$(TargetFramework)' == 'net45'" />
+		<Reference Include="System.Configuration" Condition="'$(TargetFramework)' == 'net45'" />
+		<Reference Include="System.Net.Http" />
+
+		<!-- .NET 4.6+ 及 .NET Core 特有依赖 -->
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" Condition="'$(TargetFramework)' != 'net45'">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" Condition="'$(TargetFramework)' != 'net45'" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Resource Include="Images\exit_1.png">
+	    <CopyToOutputDirectory></CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Images\exit_2.png">
+	    <CopyToOutputDirectory></CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Images\login_Button_1.png">
+	    <CopyToOutputDirectory></CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Images\login_Button_2.png">
+	    <CopyToOutputDirectory></CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Images\NumberNine.png" />
+	  <Resource Include="Images\userbox_1.png">
+	    <CopyToOutputDirectory></CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Images\userbox_2.png">
+	    <CopyToOutputDirectory></CopyToOutputDirectory>
+	  </Resource>
+	</ItemGroup>
+
+	<!-- 3. 排除框架不兼容文件（可选，若有高版本专属代码） -->
+
+</Project>
