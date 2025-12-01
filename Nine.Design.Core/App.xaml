@@ -9,16 +9,16 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary>
+                    <FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>
+                </ResourceDictionary>
+                <ResourceDictionary>
                     <!--<com:AppBootstrapper x:Key="bootstrapper" />-->
 
-                    <FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>
-                    
                     <pu:GlobalSettings x:Key="globalSettings"
-                   FontFamily="Inter" 
-                   FontSize="14"
-                   IconFontFamily="{StaticResource NDCIcon}"
-                   IconFontSize="16" />
-                    
+                                        FontFamily="Segoe UI, 微软雅黑, Arial" 
+                                        FontSize="14"
+                                        IconFontFamily="{StaticResource NDCIcon}"
+                                        IconFontSize="16" />
                 </ResourceDictionary>
                 <!--<ResourceDictionary Source="pack://application:,,,/Panuon.WPF.UI;component/Control.xaml" />-->
             </ResourceDictionary.MergedDictionaries>
