@@ -20,7 +20,7 @@
         <Setter Property="Background"
                 Value="Transparent" />
         <Setter Property="FontFamily"
-                Value="/HND.UI;component/Resources/Fonts/#ProjectMIcon" />
+                Value="/Nine.Design.UI;component/Resources/Fonts/#NDCIcon" />
         <Setter Property="FontSize"
                 Value="16" />
     </Style>

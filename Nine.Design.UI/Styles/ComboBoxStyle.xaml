@@ -64,7 +64,7 @@
                 <Style TargetType="pu:TransformControl"
                        BasedOn="{StaticResource {x:Static pu:ComboBoxHelper.ToggleArrowTransformControlStyle}}">
                     <Setter Property="FontFamily"
-                            Value="/HND.UI;component/Resources/Fonts/#ProjectMIcon" />
+                            Value="/Nine.Design.UI;component/Resources/Fonts/#NDCIcon" />
                     <Setter Property="Content"
                             Value="&#xe901;" />
                     <Setter Property="FontSize"

@@ -5,355 +5,195 @@
             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
             xmlns:local="clr-namespace:Nine.Design.Core"
             xmlns:pu="clr-namespace:Panuon.WPF.UI;assembly=Panuon.WPF.UI"
+            xmlns:purs="clr-namespace:Panuon.WPF.UI.Resources;assembly=Panuon.WPF.UI"
             xmlns:pucore="clr-namespace:Panuon.WPF;assembly=Panuon.WPF"
+            xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
             mc:Ignorable="d"
-            Title="Nine.Design.Core" 
-            Height="720" 
-            Width="1280"
+            Height="600"
+            Width="950"
             WindowStartupLocation="CenterScreen"
             pu:WindowXCaption.Height="0"
             pu:ScrollBarHelper.ThumbBackground="{DynamicResource ThemeBrushTrans6}"
             pu:ScrollBarHelper.HoverThumbBackground="{DynamicResource ThemeBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Panuon.WPF.UI;component/Control.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ToggleButtonStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/SearchBoxStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/LabelStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/PasswordBoxStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/GroupBoxStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ComboBoxStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/TextBoxStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/DropDownStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ButtonStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ListBoxStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Themes/Light.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
-
-        <!-- 侧边栏 (Drawer) -->
         <pu:Drawer x:Name="DrwMenu"
-                   BorderThickness="0,0,1,0"
-                   MinWidth="60"
-                   MaxWidth="250"
-                   ShadowColor="#88000000">
+           BorderThickness="0,0,1,0"
+           MinWidth="60"
+           MaxWidth="250"
+           ShadowColor="{x:Null}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="60" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-
-                <!-- 侧边栏标题和收起按钮 -->
+                <Rectangle Fill="Transparent"
+                   pu:WindowX.IsDragMoveArea="True" />
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition />
+                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Margin="20,0,0,0"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                IsHitTestVisible="False">
-                        <Image Width="24"
-                               Height="24"
-                               Source="/Nine.Design.Login;component/Images/NumberNine.png" />
-                        <TextBlock Margin="10,0,0,0"
-                                   Text="Nine.Design"
-                                   VerticalAlignment="Center"
-                                   FontWeight="SemiBold"
-                                   FontSize="16" />
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False">
+                        <Image Width="20"
+                       Height="20"
+                       Source="/Nine.Design.Login;component/Images/NumberNine.png" />
+                        <TextBlock Margin="5,0,0,0"
+                           Text="NINE.DESIGN"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
                     </StackPanel>
-                    <ToggleButton Grid.Column="1"
-                                  Width="60"
-                                  Height="60"
-                                  Content="&#xe915;"
-                                  pu:ToggleButtonHelper.CheckedContent="&#xe914;"
-                                  Style="{DynamicResource IconToggleButtonStyle}"
-                                  IsChecked="{Binding IsOpen, ElementName=DrwMenu, Mode=TwoWay}" />
+                    <ToggleButton Grid.Column="2"
+                          Width="60"
+                          Content="&#xe915;"
+                          pu:ToggleButtonHelper.CheckedContent="&#xe914;"
+                          Style="{DynamicResource IconToggleButtonStyle}"
+                          IsChecked="{Binding IsOpen, ElementName=DrwMenu, Mode=TwoWay}" />
                 </Grid>
-
                 <Rectangle Grid.Row="1"
-                           Height="1"
-                           Fill="{DynamicResource SeparatorBrush}" />
-
-                <!-- 侧边栏菜单项 -->
+                   Height="1"
+                   Fill="{DynamicResource SeparatorBrush}" />
                 <ListBox Grid.Row="2"
-                         Margin="10,15,10,0"
-                         Style="{DynamicResource MainMenuListBoxStyle}">
-                    <ListBoxItem Content="Dashboard"
-                                 pu:ListBoxItemHelper.Icon="&#xe904;" />
-                    <ListBoxItem Content="Profile"
-                                 pu:ListBoxItemHelper.Icon="&#xe910;" />
-                    <ListBoxItem Content="Messages"
-                                 pu:ListBoxItemHelper.Icon="&#xe90a;" />
-                    <ListBoxItem Content="Settings"
-                                 pu:ListBoxItemHelper.Icon="&#xe912;" />
+                 Margin="10,15,10,0"
+                 SelectedIndex="{Binding SelectedMainMenuIndex}"
+                 Style="{DynamicResource MainMenuListBoxStyle}">
+                    <ListBoxItem Content="首页"
+                         pu:ListBoxItemHelper.Icon="&#xe904;" />
+                    <ListBoxItem Content="信息"
+                         pu:ListBoxItemHelper.Icon="&#xe90a;" />
+                    <ListBoxItem Content="任务"
+                         pu:ListBoxItemHelper.Icon="&#xe913;" />
+                    <ListBoxItem Content="记事本"
+                         pu:ListBoxItemHelper.Icon="&#xe910;" />
+                    <ListBoxItem Content="设置"
+                         pu:ListBoxItemHelper.Icon="&#xe912;" />
                 </ListBox>
-
-                <!-- 底部用户信息 -->
-                <Grid Grid.Row="3"
-                      Margin="10,15,10,15"
-                      Background="{DynamicResource ControlBackgroundAltBrush}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <Border Width="40"
-                            Height="40"
-                            CornerRadius="20"
-                            BorderThickness="1"
-                            BorderBrush="{DynamicResource BorderBrush}">
-                        <Border.Background>
-                            <ImageBrush ImageSource="/Nine.Design.Login;component/Images/userbox_1.png" />
-                        </Border.Background>
-                    </Border>
-                    <StackPanel Grid.Column="1"
-                                Margin="10,0,0,0"
-                                VerticalAlignment="Center">
-                        <TextBlock Text="Admin"
-                                   FontWeight="Medium" />
-                        <TextBlock Text="admin@example.com"
-                                   Foreground="{DynamicResource DescriptionForeground}"
-                                   FontSize="11" />
-                    </StackPanel>
-                    <Button Grid.Column="2"
-                            Content="&#xe904;"
-                            Style="{DynamicResource IconButtonStyle}" />
-                </Grid>
             </Grid>
         </pu:Drawer>
-
-        <!-- 主内容区域 -->
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="60" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition />
             </Grid.RowDefinitions>
-
-            <!-- 顶部导航栏 -->
-            <Grid>
+            <Rectangle Fill="Transparent"
+               pu:WindowX.IsDragMoveArea="True" />
+            <Rectangle Grid.Row="1"
+               Height="1"
+               Fill="{DynamicResource SeparatorBrush}" />
+            <Grid Margin="30,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Margin="30,0,0,0"
-                           VerticalAlignment="Center"
-                           Text="Dashboard"
-                           FontSize="20"
-                           FontWeight="Light" />
-
-                <StackPanel Grid.Column="2"
-                            Margin="0,0,20,0"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <Button Content="&#xe90c;"
-                            Style="{DynamicResource DescriptionIconButtonStyle}" />
-                    <Button Margin="10,0,0,0"
-                            Content="&#xe90d;"
-                            Style="{DynamicResource DescriptionIconButtonStyle}" />
-                </StackPanel>
-
-                <pu:DropDown Grid.Column="3"
-                             Margin="0,10,20,10"
-                             Width="Auto"
-                             Style="{DynamicResource StandardDropDownStyle}">
+                <pu:SearchBox Icon="&#xe911;"
+                      Watermark="查找 ..." 
+                      Style="{DynamicResource StandardSearchBoxStyle}"
+                      Width="270" />
+                <Button Grid.Column="2"
+                Margin="10,0,0,0"
+                Content="&#xe903;"
+                Style="{DynamicResource DescriptionIconButtonStyle}"/>
+                <Button Grid.Column="3"
+                Margin="10,0,0,0"
+                Content="&#xe90c;"
+                Style="{DynamicResource DescriptionIconButtonStyle}" />
+                <Button Grid.Column="4"
+                Margin="10,0,0,0"
+                Content="&#xe90d;"
+                Style="{DynamicResource DescriptionIconButtonStyle}" />
+                <pu:DropDown Grid.Column="5"
+                     Margin="25,0,0,0"
+                     Height="40"
+                     Width="Auto"
+                     pu:DropDownHelper.Placement="BottomLeft"
+                     Style="{DynamicResource StandardDropDownStyle}">
                     <pu:DropDown.Content>
                         <ToggleButton HorizontalContentAlignment="Stretch"
-                                      IsChecked="{Binding IsOpen, RelativeSource={RelativeSource AncestorType=pu:DropDown}, Mode=TwoWay}"
-                                      Style="{DynamicResource OptionsToggleButtonStyle}">
-                            <StackPanel Orientation="Horizontal"
-                                        VerticalAlignment="Center">
-                                <Border Width="30"
-                                        Height="30"
-                                        CornerRadius="15"
-                                        BorderThickness="1"
-                                        BorderBrush="{DynamicResource WindowBackground}">
+                              IsChecked="{Binding IsOpen, RelativeSource={RelativeSource AncestorType=pu:DropDown}, Mode=TwoWay}"
+                              Style="{DynamicResource OptionsToggleButtonStyle}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="张三" 
+                                   FontSize="11" />
+                                <TextBlock Grid.Row="1"
+                                   HorizontalAlignment="Right"
+                                   Text="超级管理员"
+                                   Foreground="{DynamicResource DescriptionForeground}"
+                                   FontSize="11" />
+                                <Border Grid.RowSpan="2"
+                                Grid.Column="2"
+                                Margin="15,0,0,0"
+                                Width="30"
+                                Height="30"
+                                CornerRadius="15"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource WindowBackground}">
                                     <Border.Background>
-                                        <ImageBrush ImageSource="/Nine.Design.Login;component/Images/userbox_1.png" />
+                                        <ImageBrush ImageSource="/Nine.Design.UI;component/Resources/Images/headimage_1.png" />
                                     </Border.Background>
                                 </Border>
-                                <TextBlock Margin="10,0,10,0"
-                                           Text="Admin"
-                                           VerticalAlignment="Center" />
-                                <TextBlock Text="&#xe901;"
-                                           FontFamily="{StaticResource NDCIcon}" />
-                            </StackPanel>
+                                <TextBlock Grid.Column="3"
+                                   Grid.RowSpan="2"
+                                   VerticalAlignment="Center"
+                                   Text="&#xe901;"
+                                   FontFamily="{StaticResource NDCIcon}" />
+                            </Grid>
                         </ToggleButton>
                     </pu:DropDown.Content>
                     <pu:DropDown.Child>
-                        <StackPanel Width="150">
-                            <Button Content="My Profile"
-                                    pu:ButtonHelper.Icon="&#xe910;"
-                                    Style="{DynamicResource OptionsButtonStyle}"/>
-                            <Button Content="Settings"
-                                    pu:ButtonHelper.Icon="&#xe912;"
-                                    Style="{DynamicResource OptionsButtonStyle}"/>
-                            <Separator Style="{DynamicResource MenuSeparatorStyle}"/>
-                            <Button Content="Logout"
-                                    pu:ButtonHelper.Icon="&#xe904;"
-                                    Style="{DynamicResource OptionsButtonStyle}"/>
+                        <StackPanel>
+                            <Button Content="Exit"
+                            pu:ButtonHelper.Icon="&#xe904;"
+                            Style="{DynamicResource OptionsButtonStyle}"/>
                         </StackPanel>
                     </pu:DropDown.Child>
                 </pu:DropDown>
             </Grid>
-
-            <!-- 主内容滚动区域 -->
-            <ScrollViewer Grid.Row="1"
-                          Margin="30"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-                <StackPanel>
-                    <!-- 欢迎信息卡片 -->
-                    <Border Height="150"
-                            Margin="0,0,0,30"
-                            Background="{DynamicResource AccentBrush}"
-                            CornerRadius="8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Margin="30"
-                                        VerticalAlignment="Center">
-                                <TextBlock Text="Welcome back, Admin!"
-                                           Foreground="White"
-                                           FontSize="24"
-                                           FontWeight="Light" />
-                                <TextBlock Margin="0,10,0,0"
-                                           Text="Here's what's happening today."
-                                           Foreground="White"
-                                           Opacity="0.8" />
-                            </StackPanel>
-                            <Image Grid.Column="1"
-                                   Width="120"
-                                   Height="120"
-                                   Margin="30"
-                                   Source="/Nine.Design.Login;component/Images/NumberNine.png"
-                                   Opacity="0.5" />
-                        </Grid>
-                    </Border>
-
-                    <!-- 内容卡片区域 -->
-                    <Grid Margin="0,0,0,30">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-                        <Border Margin="0,0,15,0"
-                                Background="{DynamicResource ControlBackgroundBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8">
-                            <StackPanel Margin="20">
-                                <TextBlock Text="Login Statistics"
-                                           FontWeight="Medium" />
-                                <TextBlock Margin="0,5,0,0"
-                                           Text="Total logins this month:"
-                                           Foreground="{DynamicResource DescriptionForeground}"
-                                           FontSize="12" />
-                                <TextBlock Margin="0,5,0,0"
-                                           Text="1,248"
-                                           FontSize="32"
-                                           FontWeight="Light" />
-                            </StackPanel>
-                        </Border>
-                        <Border Margin="15,0,0,0"
-                                Background="{DynamicResource ControlBackgroundBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8">
-                            <StackPanel Margin="20">
-                                <TextBlock Text="System Status"
-                                           FontWeight="Medium" />
-                                <TextBlock Margin="0,5,0,0"
-                                           Text="All services are running smoothly."
-                                           Foreground="{DynamicResource DescriptionForeground}"
-                                           FontSize="12" />
-                                <TextBlock Margin="0,5,0,0"
-                                           Text="Online"
-                                           FontSize="32"
-                                           FontWeight="Light"
-                                           Foreground="{DynamicResource SuccessBrush}" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- 最近活动列表 -->
-                    <Border Background="{DynamicResource ControlBackgroundBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                        <StackPanel Margin="20">
-                            <TextBlock Text="Recent Activity"
-                                       FontWeight="Medium" />
-                            <Separator Margin="10,0"
-                                       Style="{DynamicResource MenuSeparatorStyle}" />
-                            <ListBox Style="{DynamicResource CleanListBoxStyle}">
-                                <ListBoxItem Style="{DynamicResource CleanListBoxItemStyle}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Width="40"
-                                                Height="40"
-                                                CornerRadius="20"
-                                                Background="{DynamicResource InfoBrush}"
-                                                Opacity="0.2">
-                                            <TextBlock Text="&#xe910;"
-                                                       FontFamily="{StaticResource NDCIcon}"
-                                                       Foreground="{DynamicResource InfoBrush}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1"
-                                                    Margin="15,0,0,0"
-                                                    VerticalAlignment="Center">
-                                            <TextBlock Text="User 'john_doe' logged in" />
-                                            <TextBlock Text="5 minutes ago"
-                                                       Foreground="{DynamicResource DescriptionForeground}"
-                                                       FontSize="12" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2"
-                                                   VerticalAlignment="Center"
-                                                   Text="&#xe90f;"
-                                                   FontFamily="{StaticResource NDCIcon}"
-                                                   Foreground="{DynamicResource DescriptionForeground}" />
-                                    </Grid>
-                                </ListBoxItem>
-                                <ListBoxItem Style="{DynamicResource CleanListBoxItemStyle}">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Width="40"
-                                                Height="40"
-                                                CornerRadius="20"
-                                                Background="{DynamicResource WarningBrush}"
-                                                Opacity="0.2">
-                                            <TextBlock Text="&#xe90a;"
-                                                       FontFamily="{StaticResource NDCIcon}"
-                                                       Foreground="{DynamicResource WarningBrush}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1"
-                                                    Margin="15,0,0,0"
-                                                    VerticalAlignment="Center">
-                                            <TextBlock Text="New message from 'support'" />
-                                            <TextBlock Text="1 hour ago"
-                                                       Foreground="{DynamicResource DescriptionForeground}"
-                                                       FontSize="12" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2"
-                                                   VerticalAlignment="Center"
-                                                   Text="&#xe90f;"
-                                                   FontFamily="{StaticResource NDCIcon}"
-                                                   Foreground="{DynamicResource DescriptionForeground}" />
-                                    </Grid>
-                                </ListBoxItem>
-                            </ListBox>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
         </Grid>
     </Grid>
 </pu:WindowX>

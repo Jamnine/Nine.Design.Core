@@ -54,7 +54,7 @@
         <Setter Property="Background"
                 Value="Transparent" />
         <Setter Property="FontFamily"
-                Value="/HND.UI;component/Resources/Fonts/#ProjectMIcon" />
+                Value="/Nine.Design.UI;component/Resources/Fonts/#NDCIcon" />
         <Setter Property="FontSize"
                 Value="16" />
     </Style>
@@ -69,22 +69,22 @@
     </Style>
 
     <Style x:Key="OptionsButtonStyle"
-           TargetType="Button"
-           BasedOn="{StaticResource {x:Static purs:StyleKeys.ButtonStyle}}">
+       TargetType="Button"
+       BasedOn="{StaticResource {x:Static purs:StyleKeys.ButtonStyle}}">
         <Setter Property="Height"
-                Value="35" />
+            Value="35" />
         <Setter Property="Background"
-                Value="Transparent" />
+            Value="Transparent" />
         <Setter Property="FontWeight"
-                Value="Regular" />
+            Value="Regular" />
         <Setter Property="FontSize"
-                Value="12" />
+            Value="12" />
         <Setter Property="HorizontalContentAlignment"
-                Value="Stretch" />
+            Value="Stretch" />
         <Setter Property="Foreground"
-                Value="{DynamicResource DescriptionForeground}" />
+            Value="{DynamicResource DescriptionForeground}" />
         <Setter Property="pu:ButtonHelper.HoverForeground"
-                Value="{DynamicResource MessageForeground}" />
+            Value="{DynamicResource MessageForeground}" />
     </Style>
 
     <Style x:Key="ControlIconButtonStyle"
@@ -93,7 +93,7 @@
         <Setter Property="Background" 
                 Value="{DynamicResource InputBackground}" />
         <Setter Property="FontFamily"
-                Value="/HND.UI;component/Resources/Fonts/#ProjectMIcon" />
+                Value="/Nine.Design.UI;component/Resources/Fonts/#NDCIcon" />
         <Setter Property="Padding"
                 Value="0" />
         <Setter Property="Width"
