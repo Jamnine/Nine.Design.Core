@@ -44,7 +44,6 @@
 		<Reference Include="System.Xaml" />
 	</ItemGroup>
 	<ItemGroup>
-	  <None Remove="Resources\Fonts\NDCIcon-Regular.ttf" />
 	  <None Remove="Resources\Images\background_1.png" />
 	  <None Remove="Resources\Images\background_2.png" />
 	  <None Remove="Resources\Images\background_3.png" />
@@ -63,10 +62,7 @@
 		<PackageReference Include="Panuon.WPF.UI" Version="1.1.6.5" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Resource Include="Resources\Fonts\NDCIcon-Regular.ttf" />
-	  <Resource Include="Resources\Fonts\NDCIcon.ttf">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
+	  <Resource Include="Resources\Fonts\NDCIcon.ttf" />
 	  <Resource Include="Resources\Images\background_1.png" />
 	  <Resource Include="Resources\Images\background_2.png" />
 	  <Resource Include="Resources\Images\background_3.png" />
