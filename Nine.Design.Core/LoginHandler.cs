@@ -5,19 +5,26 @@ namespace Nine.Design.Core
 {
     public class LoginHandler
     {
+        private MainWindow _mainWindow; 
+
         public void ShowLoginWindow()
         {
-            // 创建登录窗口（DLL）
             var loginWindow = new FrmLogin();
-
-            // 订阅登录提交事件
             loginWindow.OnLoginSubmit += LoginWindow_OnLoginSubmit;
 
-            // 显示登录窗口
+            // 关键：订阅登录窗口的 Closed 事件，登录窗口关闭时关闭 MainWindow
+            loginWindow.Closed += (s, e) =>
+            {
+                _mainWindow?.Close(); // 关闭主窗口
+                if (_mainWindow is IDisposable mainDisposable)
+                {
+                    mainDisposable.Dispose(); // 释放主窗口资源
+                }
+            };
+
             loginWindow.ShowDialog();
         }
 
-        // 事件回调（.NET 4.5 支持 async void 用于事件）
         private async Task LoginWindow_OnLoginSubmit(object sender, LoginInputEventArgs e)
         {
             // 1. 调用登录逻辑（返回 Tuple<bool, string>）

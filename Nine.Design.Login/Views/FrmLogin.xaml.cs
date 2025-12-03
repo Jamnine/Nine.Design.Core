@@ -26,8 +26,36 @@ namespace Nine.Design.Login.Views
     /// 登录窗口（FrmLogin.xaml）的交互逻辑类
     /// 功能包含：登录/注册/找回密码界面切换、左侧动态背景、控件交互动画、登录流程处理
     /// </summary>
-    public partial class FrmLogin : Window
+    public partial class FrmLogin : Window, IDisposable
     {
+        private bool _disposed = false;
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+
+            if (disposing)
+            {
+                // 释放托管资源：取消事件订阅、释放文件流/数据库连接等
+                // _service.DataChanged -= OnDataChanged;
+                // _service?.Dispose();
+            }
+
+            // 释放非托管资源（若有，如 IntPtr 指针）
+            // ...
+
+            _disposed = true;
+        }
+
+        ~FrmLogin()
+        {
+            Dispose(false);
+        }
+
         #region 1. 预加载资源（图片素材）
         // 退出按钮-鼠标进入时的图片
         readonly BitmapImage Exit_Enter = new BitmapImage(new Uri("/Nine.Design.Login;component/Images/exit_1.png", UriKind.Relative));
@@ -580,22 +608,61 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Exit_Img_MouseUp(object sender, MouseEventArgs e)
         {
-            // 执行窗口退出动画（XAML中定义的"ExitTo"，如淡出效果）
-            (StartGrid.FindResource("ExitTo") as Storyboard).Begin();
-            // 延迟1100毫秒（等待动画完成，提升视觉体验）
-            Helper.Delay(1100);
-            // 关闭当前登录窗口
-            this.Close();
-            // 结束客户端进程（防止窗口关闭后进程残留）
-            Process[] myproc = Process.GetProcesses(); // 获取所有正在运行的进程
-            foreach (Process item in myproc)
+            try
             {
-                // 找到客户端进程（进程名为"Nine.Design.Client"）并结束
-                if (item.ProcessName == "Nine.Design.Client")
+                // 1. 执行退出动画（异步等待，避免 UI 卡死）
+                var exitStoryboard = StartGrid.FindResource("ExitTo") as Storyboard;
+                exitStoryboard?.Begin();
+                Helper.Delay(1100); // 异步等待动画完成（替代同步 Delay）
+
+                // 2. 释放当前窗口资源（若窗口实现了 IDisposable）
+                if (this is IDisposable disposableWindow)
                 {
-                    item.Kill();
+                    disposableWindow.Dispose();
                 }
+
+                // 3. 关闭所有由该 DLL 打开的窗口（防止残留子窗口）
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    foreach (var window in Application.Current.Windows.Cast<Window>().ToList())
+                    {
+                        if (window != this && (window.IsVisible || window.IsLoaded))
+                        {
+                            window.Close();
+                            // 释放子窗口资源
+                            if (window is IDisposable childDisposable)
+                            {
+                                childDisposable.Dispose();
+                            }
+                        }
+                    }
+                });
+
+                // 4. 终止当前主进程（无论调用方是谁，都能彻底退出）
+                var currentProcess = Process.GetCurrentProcess();
+                currentProcess.Kill(); // 强制终止进程（确保无残留）
             }
+            catch (Exception ex)
+            {
+                // 异常时仍强制终止进程，兜底处理
+                Process.GetCurrentProcess().Kill();
+            }
+            //// 执行窗口退出动画（XAML中定义的"ExitTo"，如淡出效果）
+            //(StartGrid.FindResource("ExitTo") as Storyboard).Begin();
+            //// 延迟1100毫秒（等待动画完成，提升视觉体验）
+            //Helper.Delay(1100);
+            //// 关闭当前登录窗口
+            //this.Close();
+            //// 结束客户端进程（防止窗口关闭后进程残留）
+            //Process[] myproc = Process.GetProcesses(); // 获取所有正在运行的进程
+            //foreach (Process item in myproc)
+            //{
+            //    // 找到客户端进程（进程名为"Nine.Design.Client"）并结束
+            //    if (item.ProcessName == "Nine.Design.Client")
+            //    {
+            //        item.Kill();
+            //    }
+            //}
         }
 
         //---------------------->>>以下是六边形头像Img的各种事件
