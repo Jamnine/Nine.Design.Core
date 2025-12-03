@@ -8,9 +8,11 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -100,8 +102,6 @@ namespace Nine.Design.Login.Views
         // 定义事件：当用户点击登录时，将输入信息传递给项目A
         public event LoginSubmitEventHandler OnLoginSubmit;
 
-
-
         /// <summary>
         /// 登录窗口构造函数（入口）
         /// 仅初始化XAML界面，不包含业务逻辑
@@ -116,6 +116,7 @@ namespace Nine.Design.Login.Views
         // 回显记住的密码和状态（仅界面展示）
         private void FrmLogin_Loaded(object sender, RoutedEventArgs e)
         {
+            InitLoginButtonStyle();
             // 从本地读取状态（DLL仅负责读取，不处理存储逻辑）
             //var state = LoadLocalState();
             //if (state != null)
@@ -133,7 +134,13 @@ namespace Nine.Design.Login.Views
         //    // 实际项目中可简化为读取配置文件（加密逻辑由项目A处理）
         //    return new LoginState(); // 示例：返回空状态
         //}
-
+        private void InitLoginButtonStyle()
+        {
+            Login_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#cdcdcd"));
+            Login_Icon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#cdcdcd"));
+            Login_Icon.RenderTransform = new ScaleTransform(1, 1); // 默认大小
+            Login_Icon.Effect = null; // 默认无阴影
+        }
         // 辅助：保存本地状态（仅存储用户选择的状态）
         private void SaveLocalState(LoginInputEventArgs input)
         {
@@ -568,9 +575,10 @@ namespace Nine.Design.Login.Views
         private void Grid_MouseDown(object sender, MouseButtonEventArgs e)
         {
             // 1. 若鼠标在登录按钮上（按钮处于"鼠标进入"状态），不允许拖拽
-            if (Login_Button.Source == LoginButton_Enter) { return; }
+            if (Login_Button.IsMouseOver) { return; }
             // 2. 若鼠标在退出按钮上（按钮处于"鼠标进入"状态），不允许拖拽
-            if (Exit_Img.Source == Exit_Enter) { return; }
+            //if (Exit_Img.Source == Exit_Enter) { return; }
+            if (Exit_Button.IsMouseOver) { return; }
             // 3. 若Head=1（头像处于交互状态），不允许拖拽
             if (Head == 1) { return; }
 
@@ -590,7 +598,20 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Exit_MouseEnter(object sender, MouseEventArgs e)
         {
-            Exit_Img.Source = Exit_Enter;
+            //Exit_Button.Source = Exit_Enter;
+            // 悬浮时：线条+填充统一改为浅红色（#FF6666），视觉提示明显
+            Exit_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6666"));
+            Exit_Icon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6666"));
+            // 19x19 小尺寸轻微放大（5%），不突兀
+            Exit_Icon.RenderTransform = new ScaleTransform(1.05, 1.05);
+            // 红色系阴影，增强层次感
+            Exit_Icon.Effect = new DropShadowEffect
+            {
+                BlurRadius = 3,
+                Color = (Color)ColorConverter.ConvertFromString("#FF9999"),
+                Opacity = 0.4,
+                Direction = 270
+            };
         }
 
         /// <summary>
@@ -599,7 +620,12 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Exit_MouseLeave(object sender, MouseEventArgs e)
         {
-            Exit_Img.Source = Exit_Leave;
+            //Exit_Button.Source = Exit_Leave;
+            // 恢复初始样式：浅灰色（#bfbfbf）
+            Exit_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#bfbfbf"));
+            Exit_Icon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#bfbfbf"));
+            Exit_Icon.RenderTransform = new ScaleTransform(1, 1);
+            Exit_Icon.Effect = null;
         }
 
         /// <summary>
@@ -608,61 +634,7 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Exit_Img_MouseUp(object sender, MouseEventArgs e)
         {
-            try
-            {
-                // 1. 执行退出动画（异步等待，避免 UI 卡死）
-                var exitStoryboard = StartGrid.FindResource("ExitTo") as Storyboard;
-                exitStoryboard?.Begin();
-                Helper.Delay(1100); // 异步等待动画完成（替代同步 Delay）
-
-                // 2. 释放当前窗口资源（若窗口实现了 IDisposable）
-                if (this is IDisposable disposableWindow)
-                {
-                    disposableWindow.Dispose();
-                }
-
-                // 3. 关闭所有由该 DLL 打开的窗口（防止残留子窗口）
-                Application.Current?.Dispatcher.Invoke(() =>
-                {
-                    foreach (var window in Application.Current.Windows.Cast<Window>().ToList())
-                    {
-                        if (window != this && (window.IsVisible || window.IsLoaded))
-                        {
-                            window.Close();
-                            // 释放子窗口资源
-                            if (window is IDisposable childDisposable)
-                            {
-                                childDisposable.Dispose();
-                            }
-                        }
-                    }
-                });
-
-                // 4. 终止当前主进程（无论调用方是谁，都能彻底退出）
-                var currentProcess = Process.GetCurrentProcess();
-                currentProcess.Kill(); // 强制终止进程（确保无残留）
-            }
-            catch (Exception ex)
-            {
-                // 异常时仍强制终止进程，兜底处理
-                Process.GetCurrentProcess().Kill();
-            }
-            //// 执行窗口退出动画（XAML中定义的"ExitTo"，如淡出效果）
-            //(StartGrid.FindResource("ExitTo") as Storyboard).Begin();
-            //// 延迟1100毫秒（等待动画完成，提升视觉体验）
-            //Helper.Delay(1100);
-            //// 关闭当前登录窗口
-            //this.Close();
-            //// 结束客户端进程（防止窗口关闭后进程残留）
-            //Process[] myproc = Process.GetProcesses(); // 获取所有正在运行的进程
-            //foreach (Process item in myproc)
-            //{
-            //    // 找到客户端进程（进程名为"Nine.Design.Client"）并结束
-            //    if (item.ProcessName == "Nine.Design.Client")
-            //    {
-            //        item.Kill();
-            //    }
-            //}
+            
         }
 
         //---------------------->>>以下是六边形头像Img的各种事件
@@ -706,8 +678,25 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void UserName_Box_MouseEnter(object sender, MouseEventArgs e)
         {
-            UserName_Img.Source = TextBox_Enter; // 切换背景图
-            UserName_Img.Opacity = 1; // 设置背景图不透明（增强视觉效果）
+            //UserName_Img.Source = TextBox_Enter; // 切换背景图
+            //UserName_Img.Opacity = 1; // 设置背景图不透明（增强视觉效果）
+            // 替换原图片切换：图标颜色改为 #686969，透明度设为1（更醒目）
+            UserName_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#686969"));
+            UserName_Icon.Opacity = 1;
+
+            // 横线同步改为 #686969，透明度设为1，与图标保持一致
+            UserName_Line.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#686969"));
+            UserName_Line.Opacity = 1;
+
+            // 保留原阴影逻辑（如需增强悬浮阴影，可添加以下代码）
+            UserName_Line.Effect = new DropShadowEffect
+            {
+                BlurRadius = 2,
+                Color = (Color)ColorConverter.ConvertFromString("#DDDDDD"),
+                Opacity = 0.9,
+                Direction = 90,
+                ShadowDepth = 1
+            };
         }
 
         /// <summary>
@@ -716,8 +705,25 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void UserName_Box_MouseLeave(object sender, MouseEventArgs e)
         {
-            UserName_Img.Source = TextBox_Leave; // 切换背景图
-            UserName_Img.Opacity = 0.8; // 设置背景图半透明（区分默认状态）
+            //UserName_Img.Source = TextBox_Leave; // 切换背景图
+            //UserName_Img.Opacity = 0.8; // 设置背景图半透明（区分默认状态）
+            // 替换原图片切换：恢复默认图标颜色 #CCCCCC，透明度 0.8
+            UserName_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#a2a4a7"));
+            UserName_Icon.Opacity = 0.8;
+
+            // 横线同步恢复默认样式，与图标保持一致
+            UserName_Line.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#a2a4a7"));
+            UserName_Line.Opacity = 0.8;
+
+            // 恢复默认向上阴影（与默认状态一致）
+            UserName_Line.Effect = new DropShadowEffect
+            {
+                BlurRadius = 2,
+                Color = (Color)ColorConverter.ConvertFromString("#EEEEEE"),
+                Opacity = 0.8,
+                Direction = 90,
+                ShadowDepth = 1
+            };
         }
 
         /// <summary>
@@ -726,12 +732,18 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void UserName_Box_GotFocus(object sender, RoutedEventArgs e)
         {
+            //if (UserName_Box.Text == "用户名/邮箱")
+            //{
+            //    UserName_Box.Text = ""; // 清空占位符
+            //    UserName_Box.FontSize = 17; // 字体放大（提升输入可读性）
+            //    // 字体颜色改为黑色（默认占位符为灰色，区分输入状态）
+            //    UserName_Box.Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+            //}
             if (UserName_Box.Text == "用户名/邮箱")
             {
-                UserName_Box.Text = ""; // 清空占位符
+                UserName_Box.Text = "";
                 UserName_Box.FontSize = 17; // 字体放大（提升输入可读性）
-                // 字体颜色改为黑色（默认占位符为灰色，区分输入状态）
-                UserName_Box.Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+                UserName_Box.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#333333")); // 输入文本颜色
             }
         }
 
@@ -741,12 +753,18 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void UserName_Box_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (UserName_Box.Text == "")
+            //if (UserName_Box.Text == "")
+            //{
+            //    UserName_Box.Text = "用户名/邮箱"; // 恢复占位符
+            //    UserName_Box.FontSize = 14; // 字体恢复默认大小
+            //    // 字体颜色改为灰色（区分占位符和实际输入）
+            //    UserName_Box.Foreground = new SolidColorBrush(Color.FromRgb(127, 127, 127));
+            //}
+            if (string.IsNullOrWhiteSpace(UserName_Box.Text))
             {
-                UserName_Box.Text = "用户名/邮箱"; // 恢复占位符
+                UserName_Box.Text = "用户名/邮箱";
                 UserName_Box.FontSize = 14; // 字体恢复默认大小
-                // 字体颜色改为灰色（区分占位符和实际输入）
-                UserName_Box.Foreground = new SolidColorBrush(Color.FromRgb(127, 127, 127));
+                UserName_Box.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF7F7F7F")); // 提示文本颜色
             }
         }
 
@@ -757,8 +775,21 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void UserPass_Box_MouseEnter(object sender, MouseEventArgs e)
         {
-            UserPass_Img.Source = TextBox_Enter;
-            UserPass_Img.Opacity = 1;
+            // 密码图标变色+提高透明度
+            UserPass_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#686969"));
+            UserPass_Icon.Opacity = 1;
+
+            // 横线同步变色+提高透明度+阴影增强
+            UserPass_Line.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#686969"));
+            UserPass_Line.Opacity = 1;
+            UserPass_Line.Effect = new DropShadowEffect
+            {
+                BlurRadius = 2,
+                Color = (Color)ColorConverter.ConvertFromString("#DDDDDD"),
+                Opacity = 0.9,
+                Direction = 90,
+                ShadowDepth = 1
+            };
         }
 
         /// <summary>
@@ -767,8 +798,21 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void UserPass_Box_MouseLeave(object sender, MouseEventArgs e)
         {
-            UserPass_Img.Source = TextBox_Leave;
-            UserPass_Img.Opacity = 0.8;
+            // 恢复密码图标默认样式
+            UserPass_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#a2a4a7"));
+            UserPass_Icon.Opacity = 0.8;
+
+            // 恢复横线默认样式+阴影
+            UserPass_Line.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#a2a4a7"));
+            UserPass_Line.Opacity = 0.8;
+            UserPass_Line.Effect = new DropShadowEffect
+            {
+                BlurRadius = 2,
+                Color = (Color)ColorConverter.ConvertFromString("#EEEEEE"),
+                Opacity = 0.8,
+                Direction = 90,
+                ShadowDepth = 1
+            };
         }
 
         /// <summary>
@@ -778,6 +822,12 @@ namespace Nine.Design.Login.Views
         private void UserPass_Box_GotFocus(object sender, RoutedEventArgs e)
         {
             UserPass_Box_Text.Content = ""; // 清空占位符（密码框无Text属性，用Label模拟）
+            UserPass_Box_Text.Visibility = Visibility.Collapsed; // 隐藏“密码”提示
+                                                                 // 焦点时变主题色（优先级高于悬浮）
+            UserPass_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#686969"));
+            UserPass_Line.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#686969"));
+            UserPass_Icon.Opacity = 1;
+            UserPass_Line.Opacity = 1;
         }
 
         /// <summary>
@@ -789,6 +839,23 @@ namespace Nine.Design.Login.Views
             if (UserPass_Box.Password == "")
             {
                 UserPass_Box_Text.Content = "密码"; // 恢复占位符
+            }
+            if (string.IsNullOrWhiteSpace(UserPass_Box.Password))
+            {
+                UserPass_Box_Text.Visibility = Visibility.Visible; // 恢复“密码”提示
+                                                                   // 无输入时恢复默认样式
+                UserPass_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCCCCC"));
+                UserPass_Line.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCCCCC"));
+                UserPass_Icon.Opacity = 0.8;
+                UserPass_Line.Opacity = 0.8;
+            }
+            else
+            {
+                // 有输入时保持主题色
+                UserPass_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#a2a4a7"));
+                UserPass_Line.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#a2a4a7"));
+                UserPass_Icon.Opacity = 1;
+                UserPass_Line.Opacity = 1;
             }
         }
 
@@ -807,12 +874,35 @@ namespace Nine.Design.Login.Views
 
         //---------------------->>>以下是登录按钮事件
         /// <summary>
-        /// 登录按钮-鼠标进入事件
-        /// 切换按钮图片为"鼠标进入"状态，提升交互反馈
+        /// 登录按钮（外层Grid）鼠标进入事件
+        /// 功能：实现鼠标悬浮时的交互反馈，提升用户体验
         /// </summary>
+        /// <param name="sender">事件触发源（此处为Login_Button Grid控件）</param>
+        /// <param name="e">鼠标事件参数（包含鼠标位置、状态等信息）</param>
         private void Login_Button_MouseEnter(object sender, MouseEventArgs e)
         {
-            Login_Button.Source = LoginButton_Enter;
+            // 注释：以下两行是废弃的旧逻辑（原Image控件切换图片/Path直接赋值），已注释保留历史痕迹
+            //Login_Button.Source = LoginButton_Enter; // 原Image控件的图片切换逻辑（已替换为Path矢量图，废弃）
+            //Login_Button.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#007AFF")); // 原直接操作Grid填充色（逻辑错误，废弃）
+
+            // 1. 设置图标线条颜色：从默认浅灰(#bfbfbf)改为深灰(#555555)，增强悬浮视觉对比
+            Login_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555555"));
+
+            // 2. 保持图标填充色不变（仍为默认浅灰#bfbfbf），仅通过线条色变化区分状态，避免过于突兀
+            Login_Icon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#bfbfbf"));
+
+            // 3. 图标中心缩放：以图标中心为原点（依赖XAML中RenderTransformOrigin="0.5,0.5"），轻微放大3%（1.03倍）
+            // 注释：原注释"放大15%"为笔误，实际缩放比例为1.03（放大3%），视觉更柔和
+            Login_Icon.RenderTransform = new ScaleTransform(1.03, 1.03);
+
+            // 4. 添加悬浮阴影效果：增强图标层次感，提升交互感知
+            Login_Icon.Effect = new DropShadowEffect
+            {
+                BlurRadius = 7, // 阴影模糊程度（7px），数值越大阴影越扩散
+                Color = (Color)ColorConverter.ConvertFromString("#666666"), // 阴影颜色（深灰#666666），与线条色协调
+                Opacity = 0.3, // 阴影透明度（30%），避免阴影过重影响整体视觉
+                Direction = 270 // 阴影投射方向（270°对应向下），符合常规UI设计习惯
+            };
         }
 
         /// <summary>
@@ -821,7 +911,10 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Login_Button_MouseLeave(object sender, MouseEventArgs e)
         {
-            Login_Button.Source = LoginButton_Leave;
+            InitLoginButtonStyle();
+            //Login_Button.Source = LoginButton_Leave;
+            //Login_Button.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#bfbfbf"));
+
         }
 
         /// <summary>
@@ -837,6 +930,70 @@ namespace Nine.Design.Login.Views
         {
             FouceBox.Focus(); // 取消输入框聚焦
             await UserLogin(); // 调用异步登录方法（注意方法名改为 Async 后缀规范）
+            // 这里保留你的登录核心逻辑（原有代码不变）
+            // 示例：LoginLogic();
+
+            // 恢复样式
+            if (Login_Button.IsMouseOver)
+            {
+                // 鼠标仍在按钮上，恢复hover效果
+                Login_Button_MouseEnter(sender, e);
+            }
+            else
+            {
+                // 鼠标已离开，恢复默认样式
+                InitLoginButtonStyle();
+            }
+        }
+
+        /// <summary>
+        /// 通用方法：创建带下划线的文本（修复 Pen 错误，使用原生下划线）
+        /// </summary>
+        /// <param name="text">显示文本</param>
+        /// <param name="foreground">文字+下划线颜色</param>
+        private TextBlock CreateUnderlineText(string text, Brush foreground)
+        {
+            var run = new Run(text)
+            {
+                Foreground = foreground, // 文字颜色
+                FontSize = 12
+            };
+
+            var textBlock = new TextBlock();
+            textBlock.Inlines.Add(new Underline(run)); // 原生下划线，颜色与文字同步
+            return textBlock;
+        }
+
+        /// <summary>
+        /// 通用方法：设置标签的下沉/恢复样式
+        /// </summary>
+        /// <param name="label">目标标签</param>
+        /// <param name="isPressed">是否为按压状态</param>
+        /// <param name="text">标签文本</param>
+        private void SetLabelPressStyle(Label label, bool isPressed, string text)
+        {
+            if (isPressed)
+            {
+                // 按压状态：下沉1px + 加深蓝色 + 下划线
+                Brush pressedBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#005EB8"));
+                label.Content = CreateUnderlineText(text, pressedBrush);
+
+                // 下沉核心：修改Margin实现视觉下沉
+                var originalMargin = label.Margin;
+                label.Margin = new Thickness(originalMargin.Left, originalMargin.Top + 1, originalMargin.Right, originalMargin.Bottom - 1);
+            }
+            else
+            {
+                // 恢复状态：原位置 + 主题蓝 + 下划线
+                Brush normalBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF0078D7"));
+                label.Content = CreateUnderlineText(text, normalBrush);
+
+                // 恢复原Margin，避免位置偏移
+                if (label.Name == "Register_Button")
+                    label.Margin = new Thickness(0, 0, 35, 25);
+                else if (label.Name == "Retrieve_Button")
+                    label.Margin = new Thickness(0, 0, 35, 5);
+            }
         }
         #endregion
 
@@ -849,6 +1006,12 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Register_Button_MouseEnter(object sender, MouseEventArgs e)
         {
+            SetLabelPressStyle(Register_Button, false, "注册账号");
+            //// 1. 文字颜色改为主题蓝色（与输入框、找回密码按钮保持一致）
+            //Register_Button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF0078D7"));
+
+            //// 2. 添加下划线，增强可点击提示
+            //Register_Button.Content = new TextBlock(new Underline(new Run("注册账号")));
             Head = 1;
         }
 
@@ -858,6 +1021,11 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Register_Button_MouseLeave(object sender, MouseEventArgs e)
         {
+            // 恢复默认样式（无下划线+灰色）
+            Register_Button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF727272"));
+            Register_Button.Content = "注册账号";
+            // 确保恢复原Margin
+            Register_Button.Margin = new Thickness(0, 0, 35, 25);
             Head = 0;
         }
 
@@ -867,6 +1035,11 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Register_Button_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (Register_Button.IsMouseOver)
+                SetLabelPressStyle(Register_Button, false, "注册账号");
+            else
+                Register_Button_MouseLeave(sender, e);
+
             // 执行界面切换动画（XAML中定义的两个动画，分别控制登录窗隐藏、注册窗显示）
             (Right_Grid.FindResource("Login_To_Register_1") as Storyboard).Begin();
             (Right_Grid.FindResource("Login_To_Register_2") as Storyboard).Begin();
@@ -1143,16 +1316,27 @@ namespace Nine.Design.Login.Views
         //----------------------------------------------------------------->>>>以下是找回密码窗口各种事件<<<<-------------------------------------------------------
         private void Retrieve_Button_MouseEnter(object sender, MouseEventArgs e)
         {
+            SetLabelPressStyle(Retrieve_Button, false, "找回密码");
             Head = 1;
         }
 
         private void Retrieve_Button_MouseLeave(object sender, MouseEventArgs e)
         {
+            // 恢复默认样式（无下划线+灰色）
+            Retrieve_Button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF727272"));
+            Retrieve_Button.Content = "找回密码";
+            // 确保恢复原Margin
+            Retrieve_Button.Margin = new Thickness(0, 0, 35, 5);
             Head = 0;
         }
 
         private void Retrieve_Button_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (Retrieve_Button.IsMouseOver)
+                SetLabelPressStyle(Retrieve_Button, false, "找回密码");
+            else
+                Retrieve_Button_MouseLeave(sender, e);
+
             (Right_Grid.FindResource("Login_To_Retrieve_1") as Storyboard).Begin();
             (Right_Grid.FindResource("Login_To_Retrieve_2") as Storyboard).Begin();
 
@@ -1406,6 +1590,15 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Loading_Button_MouseEnter(object sender, MouseEventArgs e)
         {
+            if (sender is Border border)
+            {
+                // 悬浮时背景色提亮（#FF1E6FFF → #FF3A8FFF），更醒目
+                border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF3A8FFF"));
+                // 轻微放大（1.02倍），增强交互感
+                border.RenderTransform = new ScaleTransform(1.02, 1.02);
+                // 透明度提高到1（原Opacity=0，确保可见）
+                border.Opacity = 1;
+            }
             Loading_Button.Background = new SolidColorBrush(Color.FromRgb(83, 145, 255));
             Head = 1;
         }
@@ -1416,6 +1609,15 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Loading_Button_MouseLeave(object sender, MouseEventArgs e)
         {
+            if (sender is Border border)
+            {
+                // 恢复默认大小（1倍缩放）
+                border.RenderTransform = new ScaleTransform(1, 1);
+                // 恢复默认背景色（#FF1E6FFF）
+                border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF1E6FFF"));
+                // 恢复默认透明度（如需隐藏可设为0，根据业务逻辑调整）
+                border.Opacity = 0;
+            }
             Loading_Button.Background = new SolidColorBrush(Color.FromRgb(30, 111, 255));
             Head = 0;
         }
@@ -1426,6 +1628,16 @@ namespace Nine.Design.Login.Views
         /// </summary>
         private void Loading_Button_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (sender is Border border)
+            {
+                // 恢复悬浮样式（放大1.02倍+提亮背景）
+                border.RenderTransform = new ScaleTransform(1.02, 1.02);
+                border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF3A8FFF"));
+
+                // 执行返回核心逻辑（示例）
+                // this.Close(); // 关闭当前窗口
+                // NavigationService.GoBack(); // 导航返回（如有导航框架）
+            }
             // 执行加载区退出动画（如缩小+淡出）
             (Loading_Grid.FindResource("Loading_Exit") as Storyboard).Begin();
             (Right_Grid.FindResource("Loading_Leave") as Storyboard).Begin();
@@ -1436,6 +1648,154 @@ namespace Nine.Design.Login.Views
             Back_Grid.Width = 0;
         }
         #endregion
+
+        /// <summary>
+        /// 登录按钮（外层Grid）鼠标按下事件
+        /// 功能：实现鼠标左键按压时的"凹陷"交互反馈，让用户清晰感知点击动作生效
+        /// </summary>
+        /// <param name="sender">事件触发源（此处为Login_Button Grid控件）</param>
+        /// <param name="e">鼠标按钮事件参数（包含点击的按钮类型、状态等信息）</param>
+        private void Login_Button_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // 过滤非左键点击：仅响应鼠标左键按压（符合Windows常规交互习惯，避免右键/中键误触发）
+            if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+            {
+                // 1. 线条颜色加深：从悬浮态深灰(#555555)改为更深灰(#444444)，强化按压视觉层次
+                Login_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444444"));
+
+                // 2. 填充色加深：从默认浅灰(#bfbfbf)改为中灰(#888888)，模拟"按压凹陷"的视觉效果
+                Login_Icon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#888888"));
+
+                // 3. 中心收缩：以图标中心为原点（依赖XAML中RenderTransformOrigin="0.5,0.5"），收缩5%（0.95倍）
+                // 注释：与悬浮态的放大形成对比，直观模拟物理按钮按压后的凹陷感
+                Login_Icon.RenderTransform = new ScaleTransform(0.95, 0.95);
+
+                // 4. 阴影弱化：按压时阴影变淡变窄，进一步强化"凹陷"的物理感知（与悬浮态阴影形成反差）
+                Login_Icon.Effect = new DropShadowEffect
+                {
+                    BlurRadius = 1, // 阴影模糊程度（1px），仅保留微弱阴影，模拟按压后的贴靠感
+                    Color = Colors.Gray, // 阴影颜色（系统默认灰色），保持视觉统一性
+                    Opacity = 0.2 // 阴影透明度（20%），比悬浮态更淡，突出凹陷效果
+                };
+            }
+        }
+
+        private void Exit_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+            {
+                // 按压时：改为深红色（#FF3333），强化按压反馈
+                Exit_Icon.Stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF3333"));
+                Exit_Icon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF3333"));
+                // 轻微收缩（5%），模拟凹陷
+                Exit_Icon.RenderTransform = new ScaleTransform(0.95, 0.95);
+                // 阴影加深，突出按压感
+                Exit_Icon.Effect = new DropShadowEffect
+                {
+                    BlurRadius = 2,
+                    Color = (Color)ColorConverter.ConvertFromString("#FF6666"),
+                    Opacity = 0.5
+                };
+            }
+            try
+            {
+                // 1. 执行退出动画（异步等待，避免 UI 卡死）
+                var exitStoryboard = StartGrid.FindResource("ExitTo") as Storyboard;
+                exitStoryboard?.Begin();
+                Helper.Delay(1100); // 异步等待动画完成（替代同步 Delay）
+
+                // 2. 释放当前窗口资源（若窗口实现了 IDisposable）
+                if (this is IDisposable disposableWindow)
+                {
+                    disposableWindow.Dispose();
+                }
+
+                // 3. 关闭所有由该 DLL 打开的窗口（防止残留子窗口）
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    foreach (var window in Application.Current.Windows.Cast<Window>().ToList())
+                    {
+                        if (window != this && (window.IsVisible || window.IsLoaded))
+                        {
+                            window.Close();
+                            // 释放子窗口资源
+                            if (window is IDisposable childDisposable)
+                            {
+                                childDisposable.Dispose();
+                            }
+                        }
+                    }
+                });
+
+                // 4. 终止当前主进程（无论调用方是谁，都能彻底退出）
+                var currentProcess = Process.GetCurrentProcess();
+                currentProcess.Kill(); // 强制终止进程（确保无残留）
+            }
+            catch (Exception ex)
+            {
+                // 异常时仍强制终止进程，兜底处理
+                Process.GetCurrentProcess().Kill();
+            }
+            //// 执行窗口退出动画（XAML中定义的"ExitTo"，如淡出效果）
+            //(StartGrid.FindResource("ExitTo") as Storyboard).Begin();
+            //// 延迟1100毫秒（等待动画完成，提升视觉体验）
+            //Helper.Delay(1100);
+            //// 关闭当前登录窗口
+            //this.Close();
+            //// 结束客户端进程（防止窗口关闭后进程残留）
+            //Process[] myproc = Process.GetProcesses(); // 获取所有正在运行的进程
+            //foreach (Process item in myproc)
+            //{
+            //    // 找到客户端进程（进程名为"Nine.Design.Client"）并结束
+            //    if (item.ProcessName == "Nine.Design.Client")
+            //    {
+            //        item.Kill();
+            //    }
+            //}
+        }
+
+        private void Exit_Img_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            // 关闭逻辑（示例）
+            // this.Close();
+
+            // 恢复样式（鼠标仍在按钮上则保持悬浮红，否则恢复默认）
+            if (Exit_Button.IsMouseOver)
+            {
+                Exit_MouseEnter(sender, e);
+            }
+            else
+            {
+                Exit_MouseLeave(sender, e);
+            }
+        }
+
+        private void Register_Button_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+            {
+                SetLabelPressStyle(Register_Button, true, "注册账号");
+            }
+        }
+
+        private void Retrieve_Button_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+            {
+                SetLabelPressStyle(Retrieve_Button, true, "找回密码");
+            }
+        }
+
+        private void Loading_Button_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && sender is Border border)
+            {
+                // 下沉收缩：0.95倍缩放，模拟按压凹陷
+                border.RenderTransform = new ScaleTransform(0.95, 0.95);
+                // 背景色加深（#FF1E6FFF → #FF1256D8），反馈更强烈
+                border.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF1256D8"));
+            }
+        }
     }
 
     #region 辅助类（动态背景相关）
