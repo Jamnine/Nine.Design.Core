@@ -159,7 +159,7 @@ namespace Nine.Design.Login.Views
             // 窗口左侧距离 = (屏幕宽度 - 窗口宽度) / 2
             Left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
         }
-
+        private Random _tempRandom; // 临时随机数实例（用于选择初始化方式）
         /// <summary>
         /// 窗口加载完成事件（Window_Loaded）
         /// 执行初始化：动态背景启动、测试数据填充、窗口居中、登录流程触发
@@ -175,8 +175,17 @@ namespace Nine.Design.Login.Views
             // 2. 填充测试数据（用户名：999999，密码：123，方便调试）
             Deo();
 
-            // 3. 初始化动态背景的点和多边形
-            Init();
+            _tempRandom = new Random(); // 临时随机数实例（仅用于选择初始化方式）
+            bool isRandomInit = _tempRandom.Next(2) == 0; // 50% 概率：0=RandomInit，1=FixedInit
+
+            if (isRandomInit)
+            {
+                RandomInit(); 
+            }
+            else
+            {
+                FixedInit();
+            }
 
             // 4. 执行窗口进入动画（StartTo为XAML中定义的Storyboard）
             (StartGrid.FindResource("StartTo") as Storyboard).Begin();
@@ -217,11 +226,12 @@ namespace Nine.Design.Login.Views
         #endregion
 
         #region 4. 左侧动态背景实现（核心动画逻辑）
+        #region 重构动画启动方法，不是每次固定点启动
         /// <summary>
         /// 初始化动态背景：生成9x9点矩阵 + 多边形 + 颜色动画
         /// 核心逻辑：创建点→生成两种多边形→绑定颜色渐变动画
         /// </summary>
-        private void Init()
+        private void FixedInit()
         {
             #region 4.1 生成9x9点矩阵（每个点包含位置、移动速度、移动范围）
             for (int i = 0; i < 9; i++)
@@ -304,6 +314,136 @@ namespace Nine.Design.Login.Views
             }
             #endregion
         }
+        #endregion
+
+        /// <summary>
+        /// 初始化动态背景：生成9x9点矩阵（随机初始位置）+ 多边形 + 颜色动画
+        /// 优化：初始位置随机化，避免启动位置固定
+        /// </summary>
+        private void RandomInit()
+        {
+            #region 强制设置layout尺寸（和XAML一致）
+            layout.Width = 400; // 和XAML中layout的Width一致
+            layout.Height = this.Height; // 和窗口高度一致
+            double canvasWidth = layout.Width;
+            double canvasHeight = layout.Height;
+            #endregion
+
+            #region 生成9x9点矩阵（基于固定的canvasWidth/canvasHeight）
+            int minXSpacing = 45;
+            int maxXSpacing = 55;
+            int minYSpacing = 60;
+            int maxYSpacing = 75;
+
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    double x = _random.Next(-11, 11);
+                    double y = _random.Next(-6, 6);
+
+                    // 点位置基于固定的canvasWidth/canvasHeight，确保覆盖整个layout
+                    double baseX = (canvasWidth / 8) * i;
+                    double baseY = (canvasHeight / 8) * j;
+                    double randomOffsetX = _random.Next(-10, 11);
+                    double randomOffsetY = _random.Next(-10, 11);
+
+                    double finalX = baseX + randomOffsetX;
+                    double finalY = baseY + randomOffsetY;
+
+                    // 强制约束在layout范围内
+                    if (finalX < 0) finalX = 0;
+                    else if (finalX > canvasWidth) finalX = canvasWidth;
+                    if (finalY < 0) finalY = 0;
+                    else if (finalY > canvasHeight) finalY = canvasHeight;
+
+                    _points[i, j] = new PointInfo()
+                    {
+                        X = finalX,
+                        Y = finalY,
+                        SpeedX = x / 24,
+                        SpeedY = y / 24,
+                        DistanceX = _random.Next(40, 110),
+                        DistanceY = _random.Next(25, 45),
+                        MovedX = 0,
+                        MovedY = 0,
+                        PolygonInfoList = new List<PolygonInfo>()
+                    };
+                }
+            }
+            #endregion
+
+            #region 4.2 生成初始颜色（蓝绿色系随机微调，避免每次颜色完全一致）
+            byte r = (byte)_random.Next(0, 16); // 红色通道（0~15，比原范围略宽，增加变化）
+            byte g = (byte)_random.Next(90, 210); // 绿色通道（90~209，原100~200）
+            int intb = g + _random.Next(40, 110); // 蓝色通道（基于绿色+40~109，原50~100）
+            if (intb > 255) intb = 255; // 防止超出255（颜色通道最大值）
+            byte b = (byte)intb;
+
+            // 随机调整颜色亮度（10%概率提亮，10%概率变暗）
+            if (_random.Next(10) < 1)
+            {
+                r = (byte)Math.Min(r + 10, 255);
+                g = (byte)Math.Min(g + 10, 255);
+                b = (byte)Math.Min(b + 10, 255);
+            }
+            else if (_random.Next(10) < 1)
+            {
+                r = (byte)Math.Max(r - 5, 0);
+                g = (byte)Math.Max(g - 5, 0);
+                b = (byte)Math.Max(b - 5, 0);
+            }
+            #endregion
+
+            #region 4.3 生成第一种多边形（上一行2个点 + 下一行1个点）- 保留原有逻辑
+            for (int i = 0; i < 8; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    Polygon poly = new Polygon(); // 创建多边形控件
+                                                  // 添加3个顶点（构成三角形）
+                    poly.Points.Add(new Point(_points[i, j].X, _points[i, j].Y)); // 点(当前行,当前列)
+                    poly.Points.Add(new Point(_points[i + 1, j].X, _points[i + 1, j].Y)); // 点(下一行,当前列)
+                    poly.Points.Add(new Point(_points[i + 1, j + 1].X, _points[i + 1, j + 1].Y)); // 点(下一行,下一列)
+                                                                                                  // 记录该点与多边形的关联（用于后续更新顶点位置）
+                    _points[i, j].PolygonInfoList.Add(new PolygonInfo() { PolygonRef = poly, PointIndex = 0 });
+                    _points[i + 1, j].PolygonInfoList.Add(new PolygonInfo() { PolygonRef = poly, PointIndex = 1 });
+                    _points[i + 1, j + 1].PolygonInfoList.Add(new PolygonInfo() { PolygonRef = poly, PointIndex = 2 });
+                    // 设置多边形填充色
+                    poly.Fill = new SolidColorBrush(Color.FromRgb(r, g, b));
+                    // 绑定颜色渐变动画
+                    SetColorAnimation(poly);
+                    // 将多边形添加到背景容器（layout为XAML中的Grid控件）
+                    layout.Children.Add(poly);
+                }
+            }
+            #endregion
+
+            #region 4.4 生成第二种多边形（上一行1个点 + 下一行2个点）- 保留原有逻辑
+            for (int i = 0; i < 8; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    Polygon poly = new Polygon();
+                    // 添加3个顶点（构成另一种三角形，填补第一种的间隙）
+                    poly.Points.Add(new Point(_points[i, j].X, _points[i, j].Y)); // 点(当前行,当前列)
+                    poly.Points.Add(new Point(_points[i, j + 1].X, _points[i, j + 1].Y)); // 点(当前行,下一列)
+                    poly.Points.Add(new Point(_points[i + 1, j + 1].X, _points[i + 1, j + 1].Y)); // 点(下一行,下一列)
+                                                                                                  // 记录点与多边形的关联
+                    _points[i, j].PolygonInfoList.Add(new PolygonInfo() { PolygonRef = poly, PointIndex = 0 });
+                    _points[i, j + 1].PolygonInfoList.Add(new PolygonInfo() { PolygonRef = poly, PointIndex = 1 });
+                    _points[i + 1, j + 1].PolygonInfoList.Add(new PolygonInfo() { PolygonRef = poly, PointIndex = 2 });
+                    // 设置填充色
+                    poly.Fill = new SolidColorBrush(Color.FromRgb(r, g, b));
+                    // 绑定颜色动画
+                    SetColorAnimation(poly);
+                    // 添加到背景容器
+                    layout.Children.Add(poly);
+                }
+            }
+            #endregion
+        }
+
 
         /// <summary>
         /// 为多边形绑定颜色渐变动画

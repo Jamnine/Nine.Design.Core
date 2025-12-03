@@ -94,9 +94,14 @@
                 <!--  窗口右信息分块  -->
                 <Grid
                     x:Name="layout"
+                    Width="400"
+                    Height="Auto" 
+                    HorizontalAlignment="Left" 
+                    VerticalAlignment="Stretch"
+                    Background="#FF3EAAFF"
                     Grid.Column="0"
-                    Margin="-1,-1,0,0"
-                    Background="#19000000">
+                    Margin="-1,-1,0,0">
+                    <!--Background="#19000000"-->
                     <Grid.Clip>
                         <!--<RectangleGeometry Rect="0,0,400,530" RadiusX="5" RadiusY="5" />-->
                         <PathGeometry Figures="M400.5,525.5 L400.5,5.5 400.53125,0.525625 395.5,0.5 5.5,0.5 C2.78311,0.5 0.5,2.78311 0.5,5.5 L0.5,525.5 C0.5,528.21689 2.78311,531.5 5.5,531.5 5.5,531.5 395.5,531.5 395.5,531.5 400.45313,531.52563 400.45313,531.52563 400.45313,531.52563 z" />
