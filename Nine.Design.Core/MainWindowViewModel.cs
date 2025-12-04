@@ -1,6 +1,21 @@
-﻿namespace Nine.Design.Core
+﻿using Nine.Design.Clientbase;
+
+namespace Nine.Design.Core
 {
-    class MainWindowViewModel
+    public class MainWindowViewModel : ViewModelBase
     {
+        public MainWindowViewModel()
+        {
+            //Init();
+            //InitSubscribe();
+        }
+
+        private object layoutDisplayContent = null;
+
+        public object LayoutDisplayContent
+        {
+            get { return this.layoutDisplayContent; }
+            set { this.SetProperty(ref this.layoutDisplayContent, value); }
+        }
     }
 }
