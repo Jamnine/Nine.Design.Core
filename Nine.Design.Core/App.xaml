@@ -10,6 +10,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary>
                     <FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>
+                    <FontFamily x:Key="PanuonIcon">/Nine.Design.UI;component/Resources/Fonts/#PanuonIcon</FontFamily>
                 </ResourceDictionary>
                 <ResourceDictionary>
                     <!--<com:AppBootstrapper x:Key="bootstrapper" />-->

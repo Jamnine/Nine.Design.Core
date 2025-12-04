@@ -1,84 +1,147 @@
-﻿using Nine.Design.Login.Models;
+﻿using Nine.Design.Core.Http;
+using Nine.Design.Core.Model.ViewModels;
+using Nine.Design.Login.Models;
 using Nine.Design.Login.Views;
+using System.Configuration;
+using System.Net.Http;
 
 namespace Nine.Design.Core
 {
     public class LoginHandler
     {
-        private MainWindow _mainWindow; 
+        private MainWindow _mainWindow;
 
+        /// <summary>
+        /// 显示登录窗口（保持原有逻辑）
+        /// </summary>
         public void ShowLoginWindow()
         {
             var loginWindow = new FrmLogin();
             loginWindow.OnLoginSubmit += LoginWindow_OnLoginSubmit;
 
-            // 关键：订阅登录窗口的 Closed 事件，登录窗口关闭时关闭 MainWindow
+            // 登录窗口关闭时，关闭主窗口并释放资源
             loginWindow.Closed += (s, e) =>
             {
-                _mainWindow?.Close(); // 关闭主窗口
+                _mainWindow?.Close();
                 if (_mainWindow is IDisposable mainDisposable)
                 {
-                    mainDisposable.Dispose(); // 释放主窗口资源
+                    mainDisposable.Dispose();
                 }
             };
 
             loginWindow.ShowDialog();
         }
 
+        /// <summary>
+        /// 登录提交事件处理（核心逻辑）
+        /// </summary>
         private async Task LoginWindow_OnLoginSubmit(object sender, LoginInputEventArgs e)
-        {
-            // 1. 调用登录逻辑（返回 Tuple<bool, string>）
-            Tuple<bool, string> loginResult = await VerifyLoginAsync(e.Username, e.Password);
-
-            // 2. 通过 Item1/Item2 获取结果（.NET 4.5 兼容方式）
-            bool success = loginResult.Item1;
-            string message = loginResult.Item2;
-
-            // 3. 回传结果给DLL
-            e.LoginSuccess = success;
-            e.Message = message;
-
-            // 4. 保存密码（如果需要）
-            if (success && e.RememberPassword)
-            {
-                SaveEncryptedPassword(e.Username, e.Password);
-            }
-
-        }
-
-        // 登录核心逻辑（返回 Tuple，避免元组解构）
-        private async Task<Tuple<bool, string>> VerifyLoginAsync(string username, string password)
         {
             try
             {
-                // 模拟API调用（.NET 4.5 中可使用 HttpClient）
-                await Task.Delay(1000); // 模拟网络延迟
-
-                // 验证逻辑
-                if (username == "999999" && password == "123")
+                // 1. 输入验证（补充基础校验）
+                if (string.IsNullOrEmpty(e.Username?.Trim()) || string.IsNullOrEmpty(e.Password?.Trim()))
                 {
+                    e.LoginSuccess = false;
+                    e.Message = "用户名或密码不能为空！";
+                    return;
+                }
 
-                    MainWindow mainWindow = new MainWindow();
-                    mainWindow.Show();
-                    return Tuple.Create(true, "登录成功"); // 返回成功结果
+                // 2. MD5加密密码（调用 HttpHelper 静态方法）
+                string md5Password = HttpHelper.Md5Encrypt(e.Password.Trim());
+
+                // 3. 从配置文件读取API地址和接口路径
+                string apiBaseUrl = ConfigurationManager.AppSettings["ApiBaseUrl"] ?? string.Empty;
+                string loginRelativePath = ConfigurationManager.AppSettings["LoginRelativePath"] ?? "Login/JWTToken3.0";
+
+                if (string.IsNullOrEmpty(apiBaseUrl))
+                {
+                    e.LoginSuccess = false;
+                    e.Message = "API地址配置错误，请检查App.config！";
+                    return;
+                }
+
+                // 4. 发送登录请求（调用 HttpHelper，响应类型为 MessageModel<TokenInfoViewModel>）
+                Nine.Design.Core.Model.MessageModel<TokenInfoViewModel> loginResult = await HttpHelper.GetAsync<TokenInfoViewModel>(
+                    relativePath: loginRelativePath,
+                    parameters: new[]
+                    {
+                        new KeyValuePair<string, string>("name", e.Username.Trim()),
+                        new KeyValuePair<string, string>("pass", md5Password)
+                    });
+
+                // 5. 处理登录结果（适配原有事件返回逻辑）
+                if (loginResult.success && loginResult.response != null && loginResult.response.success)
+                {
+                    // 登录成功：保存Token信息
+                    SaveTokenInfo(loginResult.response);
+
+                    // 打开主窗口
+                    _mainWindow = new MainWindow();
+                    _mainWindow.Show();
+
+                    // 回传成功结果给登录窗口
+                    e.LoginSuccess = true;
+                    e.Message = $"登录成功！Token有效期：{Math.Round(loginResult.response.expires_in / 3600, 1)}小时";
                 }
                 else
                 {
-                    return Tuple.Create(false, "用户名或密码错误"); // 返回失败结果
+                    // 登录失败：回传错误信息
+                    e.LoginSuccess = false;
+                    e.Message = string.IsNullOrEmpty(loginResult.msg)
+                        ? "登录失败，请检查用户名或密码！"
+                        : loginResult.msg;
                 }
+            }
+            catch (HttpRequestException ex)
+            {
+                // 网络异常处理
+                e.LoginSuccess = false;
+                e.Message = $"网络请求失败：{ex.Message}";
             }
             catch (Exception ex)
             {
-                return Tuple.Create(false, $"登录失败：{ex.Message}"); // 异常处理
+                // 其他异常处理
+                e.LoginSuccess = false;
+                e.Message = $"登录异常：{ex.Message}";
             }
         }
 
-        // 密码加密存储
+        /// <summary>
+        /// 保存Token信息到应用全局属性（供后续接口调用）
+        /// </summary>
+        private void SaveTokenInfo(TokenInfoViewModel tokenInfo)
+        {
+            if (tokenInfo == null || string.IsNullOrEmpty(tokenInfo.token))
+                return;
+
+            // 存储Token、过期时间（秒）、到期时间（本地时间）
+            App.Current.Properties["JwtToken"] = tokenInfo.token;
+            App.Current.Properties["TokenExpiresIn"] = tokenInfo.expires_in;
+            App.Current.Properties["TokenExpireTime"] = DateTime.Now.AddSeconds(tokenInfo.expires_in);
+        }
+
+        /// <summary>
+        /// 密码加密存储（如果需要“记住密码”功能）
+        /// </summary>
         private void SaveEncryptedPassword(string username, string password)
         {
-            // 示例：加密并存储（实际项目需实现加密逻辑）
-            // var encryptedPassword = Encrypt(password);
-            // 写入配置文件或数据库...
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                return;
+
+            // 示例：使用MD5加密后存储（实际项目可改用更安全的加密方式）
+            string encryptedPwd = HttpHelper.Md5Encrypt(password);
+
+            // 方式1：存储到配置文件（持久化）
+            // Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            // config.AppSettings.Settings["RememberedUsername"].Value = username;
+            // config.AppSettings.Settings["RememberedPassword"].Value = encryptedPwd;
+            // config.Save(ConfigurationSaveMode.Modified);
+            // ConfigurationManager.RefreshSection("appSettings");
+
+            // 方式2：存储到全局属性（仅当前运行有效）
+            // App.Current.Properties["RememberedUsername"] = username;
+            // App.Current.Properties["RememberedPassword"] = encryptedPwd;
         }
     }
 }
