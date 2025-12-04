@@ -1,4 +1,5 @@
 ﻿using Nine.Design.Clientbase;
+using Nine.Design.Core.Model;
 
 namespace Nine.Design.Core
 {
@@ -16,6 +17,13 @@ namespace Nine.Design.Core
         {
             get { return this.layoutDisplayContent; }
             set { this.SetProperty(ref this.layoutDisplayContent, value); }
+        }
+
+        private object userInfo = new UserInfo();
+        public object UserInfo
+        {
+            get { return this.userInfo; }
+            set { this.SetProperty(ref this.userInfo, value); }
         }
     }
 }
