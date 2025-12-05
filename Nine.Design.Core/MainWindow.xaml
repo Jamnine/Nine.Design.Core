@@ -32,25 +32,37 @@
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ButtonStyle.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ListBoxStyle.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Themes/Light.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/TrayMenuStyles.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/TrayMenuDarkStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <Style
-                x:Key="MainMenuTreeViewStyle"
-                BasedOn="{StaticResource {x:Type TreeView}}"
-                TargetType="TreeView">
-                <Setter Property="pu:IconHelper.FontFamily" Value="{StaticResource PanuonIconFont}" />
-                <Setter Property="pu:IconHelper.FontSize" Value="20" />
-                <Setter Property="pu:TreeViewHelper.ItemsBorderBrush" Value="Transparent" />
-                <Setter Property="pu:TreeViewHelper.ItemsSelectedBorderBrush" Value="#C62F2F" />
-                <Setter Property="pu:TreeViewHelper.ItemsSelectedBackground" Value="#E8E8E8" />
-                <Setter Property="pu:TreeViewHelper.ItemsBorderThickness" Value="3,0,0,0" />
-                <Setter Property="pu:TreeViewHelper.ItemsHeight" Value="33" />
-                <Setter Property="pu:TreeViewHelper.ItemsPadding" Value="10,0" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="pu:TreeViewHelper.ItemsMargin" Value="20,0,10,0" />
-                <Setter Property="pu:TreeViewHelper.ToggleArrowToggleButtonStyle" Value="{x:Null}" />
-            </Style>
         </ResourceDictionary>
     </Window.Resources>
+
+    <!--  托盘右键菜单（复用独立样式）  -->
+    <Window.ContextMenu>
+        <ContextMenu
+            x:Name="TrayContextMenu"
+            StaysOpen="False"
+            Style="{StaticResource TrayContextMenuStyle_Light}">
+            <MenuItem
+                Click="RestoreMenuItem_Click"
+                Header="还原窗口"
+                Style="{StaticResource TrayMenuItemStyle}"
+                Tag="{StaticResource IconRestore}" />
+            <Separator Style="{StaticResource TraySeparatorStyle}" />
+            <MenuItem
+                Click="HideMenuItem_Click"
+                Header="隐藏窗口"
+                Style="{StaticResource TrayMenuItemStyle}"
+                Tag="{StaticResource IconHide}" />
+            <MenuItem
+                Click="ExitMenuItem_Click"
+                Header="退出程序"
+                Style="{StaticResource TrayMenuItemStyle}"
+                Tag="{StaticResource IconExit}" />
+        </ContextMenu>
+    </Window.ContextMenu>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -235,12 +247,12 @@
                                         <ImageBrush ImageSource="/Nine.Design.UI;component/Resources/Images/headimage_1.png" />
                                     </Border.Background>
                                 </Border>
-                                <TextBlock
+                                <!--<TextBlock
                                     Grid.RowSpan="2"
                                     Grid.Column="3"
                                     VerticalAlignment="Center"
                                     FontFamily="{StaticResource NDCIcon}"
-                                    Text="&#xe901;" />
+                                    Text="&#xe901;" />-->
                             </Grid>
                         </ToggleButton>
                     </pu:DropDown.Content>

@@ -1,0 +1,155 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--  矢量图标  -->
+    <Geometry x:Key="IconRestore">M2,10 L2,6 L6,6 L6,2 L10,2 L10,6 L14,6 L14,10 L10,10 L10,14 L6,14 L6,10 Z M4,8 L4,4 L8,4 L8,8 Z</Geometry>
+    <Geometry x:Key="IconExit">M12,4 L10,4 L10,2 L6,2 L6,4 L4,4 L4,6 L6,6 L6,10 L4,10 L4,12 L6,12 L6,14 L10,14 L10,12 L12,12 L12,10 L14,10 L14,6 L12,6 Z</Geometry>
+    <Geometry x:Key="IconHide">M4,6 L12,6 L12,10 L4,10 Z M6,8 L10,8 Z</Geometry>
+
+    <!--  菜单容器样式（修复分隔线+透明背景+底部留白扩容）  -->
+    <Style x:Key="TrayContextMenuStyle_Dark" TargetType="ContextMenu">
+        <Setter Property="Background" Value="#2D2D30" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Width" Value="180" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="UseLayoutRounding" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border
+                        x:Name="Border"
+                        Background="{TemplateBinding Background}"
+                        BorderThickness="0"
+                        CornerRadius="6">
+                        <Grid Width="180">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="40" />
+                                <!--  顶部Logo区  -->
+                                <RowDefinition Height="Auto" />
+                                <!--  菜单选项区  -->
+                                <RowDefinition Height="20" />
+                                <!--  底部留白扩容（从10→20）  -->
+                            </Grid.RowDefinitions>
+
+                            <!--  顶部Logo/文字区（透明背景）  -->
+                            <Grid Grid.Row="0" Background="Transparent">
+                                <Grid.Margin>
+                                    <Thickness
+                                        Bottom="0"
+                                        Left="10"
+                                        Right="10"
+                                        Top="0" />
+                                </Grid.Margin>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <!--  Logo（透明背景）  -->
+                                <Path
+                                    Grid.Column="0"
+                                    Width="20"
+                                    Height="20"
+                                    VerticalAlignment="Center"
+                                    Data="M8,2 C4.69,2 2,4.69 2,8 C2,11.31 4.69,14 8,14 C11.31,14 14,11.31 14,8 C14,4.69 11.31,2 8,2 Z M8,12 C5.79,12 4,10.21 4,8 C4,5.79 5.79,4 8,4 C10.21,4 12,5.79 12,8 C12,10.21 10.21,12 8,12 Z M9,5 L9,7 L11,7 L11,5 Z M7,5 L7,11 L9,11 L9,9 L11,9 L11,11 L13,11 L13,5 L11,5 L11,7 L9,7 L9,5 Z"
+                                    Fill="#4A90E2" />
+                                <!--  应用名称  -->
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    FontWeight="Medium"
+                                    Foreground="White"
+                                    Text="NINE.DESIGN" />
+                            </Grid>
+
+                            <!--  菜单选项容器（修复分隔线显示）  -->
+                            <StackPanel
+                                Grid.Row="1"
+                                Margin="4,0"
+                                IsItemsHost="True" />
+
+                            <!--  底部留白区（透明背景）  -->
+                            <Grid Grid.Row="2" Background="Transparent" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  菜单项样式（保持原有交互）  -->
+    <Style x:Key="TrayMenuItemStyle" TargetType="MenuItem">
+        <Setter Property="Foreground" Value="#333333" />
+        <Setter Property="Background" Value="Transparent" />
+        <!--  菜单项透明  -->
+        <Setter Property="FontFamily" Value="微软雅黑" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border
+                        x:Name="border"
+                        Padding="{TemplateBinding Padding}"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="4"
+                        SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="20" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Grid.Column="0"
+                                Width="16"
+                                Height="16"
+                                Margin="0,0,4,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Data="{TemplateBinding Tag}"
+                                Fill="{TemplateBinding Foreground}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Text="{TemplateBinding Header}"
+                                TextOptions.TextRenderingMode="ClearType" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Offset="0" Color="#4A90E2" />
+                                        <GradientStop Offset="1" Color="#357ABD" />
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Foreground" Value="White" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#2F5F98" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  分隔线样式（修复显示）  -->
+    <Style x:Key="TraySeparatorStyle" TargetType="Separator">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border
+                        Height="1"
+                        Margin="8,4,8,4"
+                        Background="#404040" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>
