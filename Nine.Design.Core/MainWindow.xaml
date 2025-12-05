@@ -32,8 +32,7 @@
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ButtonStyle.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ListBoxStyle.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Themes/Light.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/TrayMenuStyles.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/TrayMenuDarkStyles.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/TrayMenuItemStyle.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
@@ -47,18 +46,18 @@
             <MenuItem
                 Click="RestoreMenuItem_Click"
                 Header="还原窗口"
-                Style="{StaticResource TrayMenuItemStyle}"
+                Style="{StaticResource TrayMenuItemStyle_Light}"
                 Tag="{StaticResource IconRestore}" />
-            <Separator Style="{StaticResource TraySeparatorStyle}" />
+            <Separator Style="{StaticResource TraySeparatorStyle_Light}" />
             <MenuItem
                 Click="HideMenuItem_Click"
                 Header="隐藏窗口"
-                Style="{StaticResource TrayMenuItemStyle}"
+                Style="{StaticResource TrayMenuItemStyle_Light}"
                 Tag="{StaticResource IconHide}" />
             <MenuItem
                 Click="ExitMenuItem_Click"
                 Header="退出程序"
-                Style="{StaticResource TrayMenuItemStyle}"
+                Style="{StaticResource TrayMenuItemStyle_Light}"
                 Tag="{StaticResource IconExit}" />
         </ContextMenu>
     </Window.ContextMenu>
