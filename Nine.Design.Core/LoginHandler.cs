@@ -163,6 +163,7 @@ namespace Nine.Design.Core
 
             App.Current.Properties["UserName"] = userInfo.uRealName;
             App.Current.Properties["RoleName"] = userInfo.name;
+            App.Current.Properties["UserId"] = userInfo.uID;
             // Token相关属性已通过SaveTokenToGlobal存储，无需重复赋值
         }
 

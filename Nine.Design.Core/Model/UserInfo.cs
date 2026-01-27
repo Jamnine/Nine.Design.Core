@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Nine.Design.Core.Model
+﻿namespace Nine.Design.Core.Model
 {
     public class UserInfo
     {

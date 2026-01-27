@@ -1,0 +1,163 @@
+﻿<UserControl
+    x:Class="Nine.Design.Core.Views.MainMune"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:Nine.Design.Core.Views"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:pu="clr-namespace:Panuon.WPF.UI;assembly=Panuon.WPF.UI"
+    xmlns:pucore="clr-namespace:Panuon.WPF;assembly=Panuon.WPF"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d">
+    <Grid Margin="20">
+        <!--  顶部配置区：适配项目按钮样式  -->
+        <StackPanel
+            Margin="0,0,0,20"
+            VerticalAlignment="Top"
+            Orientation="Horizontal">
+            <Button
+                Margin="0,0,10,0"
+                Padding="10,5"
+                Command="{Binding LoadAppIconsCommand}"
+                Content="加载图标"
+                Style="{DynamicResource StandardButtonStyle}" />
+            <TextBlock
+                Margin="0,0,5,0"
+                VerticalAlignment="Center"
+                Text="显示数量：" />
+            <TextBox
+                Width="50"
+                Margin="0,0,10,0"
+                Style="{DynamicResource StandardTextBoxStyle}"
+                Text="{Binding DisplayCount, UpdateSourceTrigger=PropertyChanged}" />
+            <Button
+                Margin="0,0,10,0"
+                Padding="10,5"
+                Command="{Binding UpdateDisplayCountCommand}"
+                Content="更新显示数量"
+                Style="{DynamicResource StandardButtonStyle}" />
+            <Button
+                Padding="10,5"
+                Background="{DynamicResource ThemeBrush}"
+                Command="{Binding SaveSortCommand}"
+                Content="保存排序"
+                Foreground="White"
+                Style="{DynamicResource StandardButtonStyle}" />
+        </StackPanel>
+
+        <!--  图标栅格：调整对齐方式适配主内容区  -->
+        <WrapPanel
+            Margin="0,60,0,0"
+            HorizontalAlignment="Stretch"
+            ItemHeight="120"
+            ItemWidth="100">
+            <!--  显示的APP图标  -->
+            <ItemsControl ItemsSource="{Binding DisplayedApps}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel ItemHeight="120" ItemWidth="100" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid
+                            Margin="5"
+                            AllowDrop="True"
+                            Drop="Grid_Drop"
+                            PreviewMouseLeftButtonDown="Grid_PreviewMouseLeftButtonDown">
+                            <Grid.Tag>
+                                <Binding Path="." />
+                            </Grid.Tag>
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image
+                                    Width="60"
+                                    Height="60"
+                                    Source="{Binding Icon}"
+                                    Stretch="Uniform" />
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    HorizontalAlignment="Center"
+                                    Style="{DynamicResource StandardLabelStyle}"
+                                    Text="{Binding AppName}" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!--  更多文件夹：替换MaterialDesign图标为Panuon图标  -->
+            <Grid
+                Width="100"
+                Height="120"
+                Margin="5"
+                MouseDown="MoreGrid_MouseDown">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <!--<pu:Icon
+                        Width="60"
+                        Height="60"
+                        Foreground="{DynamicResource DescriptionForeground}"
+                        Kind="Folder" />-->
+                    <TextBlock
+                        Margin="0,5,0,0"
+                        HorizontalAlignment="Center"
+                        Style="{DynamicResource StandardLabelStyle}"
+                        Text="更多" />
+                </StackPanel>
+            </Grid>
+        </WrapPanel>
+
+        <!--  更多弹窗：适配项目样式  -->
+        <Popup
+            x:Name="MorePopup"
+            Width="400"
+            Height="300"
+            Placement="MousePoint">
+            <Border
+                Background="{DynamicResource WindowBackground}"
+                BorderBrush="{DynamicResource SeparatorBrush}"
+                BorderThickness="1"
+                CornerRadius="4">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        Margin="10"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        Style="{DynamicResource TitleLabelStyle}"
+                        Text="更多应用" />
+                    <ItemsControl
+                        Grid.Row="1"
+                        Margin="10"
+                        ItemsSource="{Binding MoreApps}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel ItemHeight="100" ItemWidth="80" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image
+                                        Width="40"
+                                        Height="40"
+                                        Source="{Binding Icon}"
+                                        Stretch="Uniform" />
+                                    <TextBlock
+                                        Margin="0,5,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="12"
+                                        Style="{DynamicResource DescriptionLabelStyle}"
+                                        Text="{Binding AppName}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

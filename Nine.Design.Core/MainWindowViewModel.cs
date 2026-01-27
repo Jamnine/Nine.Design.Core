@@ -1,18 +1,136 @@
 ﻿using Nine.Design.Clientbase;
+using Nine.Design.Core.Http;
 using Nine.Design.Core.Model;
+using System.Windows;
+using System.Windows.Input;
 
 namespace Nine.Design.Core
 {
     public class MainWindowViewModel : ViewModelBase
     {
+        #region 变量声明
+        public ICommand TreeViewItemSelectedCommand { get; private set; }
+        #endregion
+
+        #region 构造函数
         public MainWindowViewModel()
         {
-            //Init();
+            Init();
+            InitCommand();
             //InitSubscribe();
+        }
+        private async void Init()
+        {
+            menuTreeShow = Visibility.Visible.ToString();
+            //获取导航栏
+            await GetGetNavigationBar();
+        }
+
+        protected override void InitCommand()
+        {
+            TreeViewItemSelectedCommand = new ViewModelCommand((object parameter) => { this.TreeViewItemSelectedExecute(parameter); });
+        }
+        #endregion
+
+        #region 接口数据
+        #region 获取导航栏
+        /// <summary>
+        /// 获取左侧菜单接口
+        /// </summary>
+        /// <returns></returns>
+        public async Task<Model.MessageModel<List<NavigationBar>>> GetGetNavigationBar()
+        {
+            Model.MessageModel<List<NavigationBar>> result = new Model.MessageModel<List<NavigationBar>>();
+            try
+            {
+                string reqUrl = "permission/GetNavigationBar";
+                string uid = App.Current.Properties["UserId"]?.ToString() ?? string.Empty;
+                string token = App.Current.Properties["JwtToken"]?.ToString() ?? string.Empty;
+
+                // 调用接口获取原始菜单数据
+                var apiResult = await HttpHelper.GetWithTokenAsync<NavigationBar>(
+                       relativePath: reqUrl,
+                       token: token,
+                       parameters: new[] { new KeyValuePair<string, string>("uid", uid) });
+
+                if (apiResult?.success == true && apiResult.response != null)
+                {
+                    // 1. 递归过滤：移除所有按钮项、隐藏项
+                    FilterAllButtonItems(apiResult.response);
+
+                    // 2. 提取过滤后的一级菜单（仅保留纯菜单节点）
+                    List<NavigationBar> pureMenuList = apiResult.response.Children
+                        .Where(m => !m.IsButton && !m.IsHide)
+                        .OrderBy(m => m.Order)
+                        .ToList();
+
+                    // 3. 赋值给绑定数据源（ListBox/TreeView用）
+                    NavigationBarList = pureMenuList;
+                    result = Model.MessageModel<List<NavigationBar>>.Success("获取菜单成功", pureMenuList);
+                }
+                else
+                {
+                    result = Model.MessageModel<List<NavigationBar>>.Fail(apiResult?.msg ?? "获取菜单失败");
+                }
+            }
+            catch (Exception ex)
+            {
+                result = Model.MessageModel<List<NavigationBar>>.Fail($"获取菜单异常：{ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 递归过滤所有层级的按钮项（核心方法）
+        /// </summary>
+        /// <param name="menuNode">当前菜单节点</param>
+        private void FilterAllButtonItems(NavigationBar menuNode)
+        {
+            // 空值保护：节点为空/无子节点，直接返回
+            if (menuNode == null || menuNode.Children == null || menuNode.Children.Count == 0)
+                return;
+
+            // 只保留「非按钮 + 非隐藏」的节点
+            var validMenuNodes = menuNode.Children
+                .Where(m => m != null && !m.IsButton && !m.IsHide)
+                .ToList();
+
+            // 清空原有节点，避免残留按钮项
+            menuNode.Children.Clear();
+
+            // 递归处理子节点（确保多级菜单的按钮也被过滤）
+            foreach (var validNode in validMenuNodes)
+            {
+                FilterAllButtonItems(validNode);
+                menuNode.Children.Add(validNode);
+            }
+        }
+        #endregion
+        #endregion
+
+        #region 内部方法
+        private void TreeViewItemSelectedExecute(object parameter)
+        {
+
+        }
+        #endregion
+
+        #region 属性
+        /// <summary>
+        /// 导航栏
+        /// </summary>
+        private List<NavigationBar> navigationBarList = new List<NavigationBar>();
+        /// <summary>
+        /// 导航栏
+        /// </summary>
+        public List<NavigationBar> NavigationBarList
+        {
+            get { return this.navigationBarList; }
+            set { this.SetProperty(ref this.navigationBarList, value); }
         }
 
         private object layoutDisplayContent = null;
-
         public object LayoutDisplayContent
         {
             get { return this.layoutDisplayContent; }
@@ -25,5 +143,26 @@ namespace Nine.Design.Core
             get { return this.userInfo; }
             set { this.SetProperty(ref this.userInfo, value); }
         }
+
+        /// <summary>
+        /// ListBox 菜单
+        /// </summary>
+        private string menuListShow = Visibility.Collapsed.ToString();
+        public string MenuListShow
+        {
+            get { return this.menuListShow; }
+            set { this.SetProperty(ref this.menuListShow, value); }
+        }
+
+        /// <summary>
+        /// TreeView 菜单
+        /// </summary>
+        private string menuTreeShow = Visibility.Collapsed.ToString();
+        public string MenuTreeShow
+        {
+            get { return this.menuTreeShow; }
+            set { this.SetProperty(ref this.menuTreeShow, value); }
+        }
+        #endregion
     }
 }
