@@ -5,14 +5,18 @@
     xmlns:local="clr-namespace:Nine.Design.Core"
     xmlns:pu="clr-namespace:Panuon.WPF.UI;assembly=Panuon.WPF.UI"
     xmlns:pucore="clr-namespace:Panuon.WPF;assembly=Panuon.WPF"
+    xmlns:pul="https://opensource.panuon.com/wpf-ui"
     xmlns:purs="clr-namespace:Panuon.WPF.UI.Resources;assembly=Panuon.WPF.UI">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/CirclePointRingLoading.xaml" />
+                <!--<ResourceDictionary Source="pack://application:,,,/Nine.Design.Clientbase;component/Theme/CirclePointRingLoading.xaml" />-->
                 <ResourceDictionary>
-                    <FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>
-                    <FontFamily x:Key="PanuonIcon">/Nine.Design.UI;component/Resources/Fonts/#PanuonIcon</FontFamily>
+                    <!--<FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>-->
+                    <FontFamily x:Key="PanuonIconFont">/Panuon.WPF.UI;component/Resources/Fonts/#PanuonIcon</FontFamily>
                 </ResourceDictionary>
+                <!--<pul:StyleDictionary Includes="All" />-->
                 <ResourceDictionary>
                     <!--<com:AppBootstrapper x:Key="bootstrapper" />-->
 
@@ -20,7 +24,7 @@
                         x:Key="globalSettings"
                         FontFamily="Segoe UI, 微软雅黑, Arial"
                         FontSize="14"
-                        IconFontFamily="{StaticResource NDCIcon}"
+                        IconFontFamily="{StaticResource PanuonIconFont}"
                         IconFontSize="16" />
                 </ResourceDictionary>
                 <!--<ResourceDictionary Source="pack://application:,,,/Panuon.WPF.UI;component/Control.xaml" />-->

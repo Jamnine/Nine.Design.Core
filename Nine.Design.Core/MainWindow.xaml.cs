@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using SystemDrawing = System.Drawing;
 using SystemWindowsForms = System.Windows.Forms;
@@ -142,7 +143,7 @@ namespace Nine.Design.Core
         {
             InitializeComponent();
             DataContext = new MainWindowViewModel();
-
+            
             // 初始化流程：按依赖顺序执行
             InitializeTrayMenuCloseTimer();
             InitializeSystemTrayIcon();
@@ -332,6 +333,7 @@ namespace Nine.Design.Core
             {
                 TrayContextMenu.IsOpen = false;
             }
+            Application.Current.MainWindow = this;
         }
 
         /// <summary>
@@ -339,6 +341,7 @@ namespace Nine.Design.Core
         /// </summary>
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            Application.Current.MainWindow = this;
             // 记录初始窗口状态
             _windowRestoreWidth = Width;
             _windowRestoreHeight = Height;
@@ -364,17 +367,17 @@ namespace Nine.Design.Core
                 }
             };
 
-            StateChanged += (s, e) =>
-            {
-                // 更新最大化按钮图标
-                ButtonHelper.SetIcon(
-                    btn_Max,
-                    WindowState == WindowState.Maximized ? "\ue9c8" : "\ue9c7");
+            //StateChanged += (s, e) =>
+            //{
+            //    // 更新最大化按钮图标
+            //    ButtonHelper.SetIcon(
+            //        btn_Max,
+            //        WindowState == WindowState.Maximized ? "\ue9c8" : "\ue9c7");
 
-                // 最小化时隐藏窗口
-                if (WindowState == WindowState.Minimized) Hide();
-                else Show();
-            };
+            //    // 最小化时隐藏窗口
+            //    if (WindowState == WindowState.Minimized) Hide();
+            //    else Show();
+            //};
         }
 
         /// <summary>
@@ -486,7 +489,6 @@ namespace Nine.Design.Core
         private void HandleMaximizedWindowDrag(Point startPos)
         {
             bool isDragging = false;
-
             // 鼠标移动事件
             MouseEventHandler moveHandler = null;
             moveHandler = (s, moveE) =>

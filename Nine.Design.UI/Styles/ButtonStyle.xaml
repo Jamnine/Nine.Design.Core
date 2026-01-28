@@ -5,6 +5,10 @@
     xmlns:pucore="clr-namespace:Panuon.WPF;assembly=Panuon.WPF"
     xmlns:purs="clr-namespace:Panuon.WPF.UI.Resources;assembly=Panuon.WPF.UI">
     <ResourceDictionary.MergedDictionaries>
+        <!--<ResourceDictionary>
+            <FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>
+            <FontFamily x:Key="PanuonIconFont">/Panuon.WPF.UI;component/Resources/Fonts/#PanuonIcon</FontFamily>
+        </ResourceDictionary>-->
         <pucore:SharedResourceDictionary Source="/Panuon.WPF.UI;component/Styles/ButtonStyle.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
@@ -47,7 +51,7 @@
         BasedOn="{StaticResource {x:Static purs:StyleKeys.ButtonStyle}}"
         TargetType="Button">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="FontFamily" Value="/Nine.Design.UI;component/Resources/Fonts/#NDCIcon" />
+        <Setter Property="FontFamily" Value="{StaticResource PanuonIconFont}" />
         <Setter Property="FontSize" Value="16" />
     </Style>
 
@@ -68,7 +72,8 @@
         <Setter Property="FontWeight" Value="Regular" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        <Setter Property="Foreground" Value="{DynamicResource DescriptionForeground}" />
+        <Setter Property="Foreground" Value="Red" />
+        <!--<Setter Property="Foreground" Value="{DynamicResource DescriptionForeground}" />-->
         <Setter Property="pu:ButtonHelper.HoverForeground" Value="{DynamicResource MessageForeground}" />
     </Style>
 

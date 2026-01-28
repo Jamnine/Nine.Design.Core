@@ -94,14 +94,14 @@
                 <!--  窗口右信息分块  -->
                 <Grid
                     x:Name="layout"
-                    Width="400"
-                    Height="Auto" 
-                    HorizontalAlignment="Left" 
-                    VerticalAlignment="Stretch"
-                    Background="#FF3EAAFF"
                     Grid.Column="0"
-                    Margin="-1,-1,0,0">
-                    <!--Background="#19000000"-->
+                    Width="400"
+                    Height="Auto"
+                    Margin="-1,-1,0,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Stretch"
+                    Background="#FF3EAAFF">
+                    <!--  Background="#19000000"  -->
                     <Grid.Clip>
                         <!--<RectangleGeometry Rect="0,0,400,530" RadiusX="5" RadiusY="5" />-->
                         <PathGeometry Figures="M400.5,525.5 L400.5,5.5 400.53125,0.525625 395.5,0.5 5.5,0.5 C2.78311,0.5 0.5,2.78311 0.5,5.5 L0.5,525.5 C0.5,528.21689 2.78311,531.5 5.5,531.5 5.5,531.5 395.5,531.5 395.5,531.5 400.45313,531.52563 400.45313,531.52563 400.45313,531.52563 z" />
@@ -286,36 +286,36 @@
                     <Grid Grid.Row="0">
                         <TextBox x:Name="FouceBox" Width="0" />
 
-                        <!-- 关闭按钮：Grid 接管交互，Path 显示矢量图标 -->
+                        <!--  关闭按钮：Grid 接管交互，Path 显示矢量图标  -->
                         <Grid
-        x:Name="Exit_Button"
-        Width="15"
-        Height="13"
-        Margin="0,19,19,0"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Top"
-        MouseEnter="Exit_MouseEnter"
-        MouseDown="Exit_MouseDown"
-        MouseUp="Exit_Img_MouseUp"
-        MouseLeave="Exit_MouseLeave"
-        Cursor="Hand"
-        Background="Transparent"
-        ToolTip="关闭">
-                           
+                            x:Name="Exit_Button"
+                            Width="15"
+                            Height="13"
+                            Margin="0,19,19,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="Transparent"
+                            Cursor="Hand"
+                            MouseDown="Exit_MouseDown"
+                            MouseEnter="Exit_MouseEnter"
+                            MouseLeave="Exit_MouseLeave"
+                            MouseUp="Exit_Img_MouseUp"
+                            ToolTip="关闭">
+
                             <Path
                                 x:Name="Exit_Icon"
-                                Stretch="Uniform"
-                                RenderOptions.BitmapScalingMode="HighQuality"
-                                Stroke="#bfbfbf" 
-                                StrokeThickness="0.1"
-                                StrokeLineJoin="Round"
-                                StrokeStartLineCap="Round"
-                                StrokeEndLineCap="Round"
                                 Fill="#bfbfbf"
                                 IsHitTestVisible="False"
-                                RenderTransformOrigin="0.5,0.5">
+                                RenderOptions.BitmapScalingMode="HighQuality"
+                                RenderTransformOrigin="0.5,0.5"
+                                Stretch="Uniform"
+                                Stroke="#bfbfbf"
+                                StrokeEndLineCap="Round"
+                                StrokeLineJoin="Round"
+                                StrokeStartLineCap="Round"
+                                StrokeThickness="0.1">
 
-                                <!-- 核心：SVG 路径数据转换（适配 WPF PathGeometry） -->
+                                <!--  核心：SVG 路径数据转换（适配 WPF PathGeometry）  -->
                                 <Path.Data>
                                     <PathGeometry Figures="M563.84,512 L826.304,198.784 A7.936,7.936 0 0 0 819.904,185.984 H739.968 A16.32,16.32 0 0 0 727.68,191.68 L511.616,449.792 L295.104,191.68 A16,16 0 0 0 282.816,185.984 H203.008 A7.936,7.936 0 0 0 196.608,198.784 L459.008,512 L196.928,825.216 A7.936,7.936 0 0 0 203.328,838.016 H282.816 A16.32,16.32 0 0 0 295.104,832 L511.616,574.208 L728.128,832 A16,16 0 0 0 740.416,838.016 H820.224 A7.936,7.936 0 0 0 826.624,825.216 L563.84,512 Z" />
                                 </Path.Data>
@@ -324,11 +324,13 @@
                     </Grid>
                     <!--<Grid Grid.Row="0">
                         <TextBox x:Name="FouceBox" Width="0" />
-                        --><!--<Button Width="30" Height="30" Margin="0,10,10,0" HorizontalAlignment="Right"  VerticalAlignment="Top" Click="Button_Click">
+                    -->
+                    <!--<Button Width="30" Height="30" Margin="0,10,10,0" HorizontalAlignment="Right"  VerticalAlignment="Top" Click="Button_Click">
                             <Button.Background>
                                 <ImageBrush ImageSource="Images\exit_1.png"/>
                             </Button.Background>
-                        </Button>--><!--
+                        </Button>-->
+                    <!--
                         <Image
                             x:Name="Exit_Img"
                             Width="30"
@@ -474,103 +476,104 @@
 
                                 </Border>-->
                                 <Border
-    Width="220"
-    Height="50"
-    Margin="0,0,35,0"
-    HorizontalAlignment="Right"
-    VerticalAlignment="Bottom"
-    MouseEnter="UserName_Box_MouseEnter"
-    MouseLeave="UserName_Box_MouseLeave"
-    Background="Transparent">
+                                    Width="220"
+                                    Height="50"
+                                    Margin="0,0,35,0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    Background="Transparent"
+                                    MouseEnter="UserName_Box_MouseEnter"
+                                    MouseLeave="UserName_Box_MouseLeave">
 
                                     <Grid>
-                                        <!-- 用户名输入框（保持原有配置不变） -->
+                                        <!--  用户名输入框（保持原有配置不变）  -->
                                         <TextBox
-            x:Name="UserName_Box"
-            Margin="35,8,5,8"
-            VerticalContentAlignment="Center"
-            Panel.ZIndex="1"
-            Background="#FFF7F7F7"
-            BorderBrush="{x:Null}"
-            BorderThickness="0"
-            CaretBrush="#FF7F7F7F"
-            FontSize="14"
-            Foreground="#FF7F7F7F"
-            GotFocus="UserName_Box_GotFocus"
-            LostFocus="UserName_Box_LostFocus"
-            SelectionBrush="#FF0078D7"
-            Text="用户名/邮箱" />
+                                            x:Name="UserName_Box"
+                                            Margin="35,8,5,8"
+                                            VerticalContentAlignment="Center"
+                                            Panel.ZIndex="1"
+                                            Background="#FFF7F7F7"
+                                            BorderBrush="{x:Null}"
+                                            BorderThickness="0"
+                                            CaretBrush="#FF7F7F7F"
+                                            FontSize="14"
+                                            Foreground="#FF7F7F7F"
+                                            GotFocus="UserName_Box_GotFocus"
+                                            LostFocus="UserName_Box_LostFocus"
+                                            SelectionBrush="#FF0078D7"
+                                            Text="用户名/邮箱" />
 
-                                        <!-- 1. 矢量用户图标（替换为新 SVG 路径） -->
+                                        <!--  1. 矢量用户图标（替换为新 SVG 路径）  -->
                                         <Path
-            x:Name="UserName_Icon"
-            Width="16"
-            Height="16"
-            Margin="10,0,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Center"
-            Stretch="Uniform"
-            RenderOptions.BitmapScalingMode="HighQuality"
-            Stroke="#bfbfbf"
-            StrokeThickness="0.1"
-            StrokeLineJoin="Round"
-            StrokeStartLineCap="Round"
-            StrokeEndLineCap="Round"
-            Fill="#bfbfbf"
-            Opacity="0.8"
-            IsHitTestVisible="False">
-                                            <!-- 应用图标样式 -->
+                                            x:Name="UserName_Icon"
+                                            Width="16"
+                                            Height="16"
+                                            Margin="10,0,0,0"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Fill="#bfbfbf"
+                                            IsHitTestVisible="False"
+                                            Opacity="0.8"
+                                            RenderOptions.BitmapScalingMode="HighQuality"
+                                            Stretch="Uniform"
+                                            Stroke="#bfbfbf"
+                                            StrokeEndLineCap="Round"
+                                            StrokeLineJoin="Round"
+                                            StrokeStartLineCap="Round"
+                                            StrokeThickness="0.1">
+                                            <!--  应用图标样式  -->
 
-                                            <!-- 核心：新 SVG 转换的用户图标路径（合并两个 path） -->
+                                            <!--  核心：新 SVG 转换的用户图标路径（合并两个 path）  -->
                                             <Path.Data>
                                                 <PathGeometry Figures="M758.494 309.269c0-153.706-121.349-278.759-270.522-278.759-149.135 0-270.505 125.051-270.505 278.759 0 104.819 56.481 196.214 139.675 243.81-163.206 60.427-280.258 221.445-280.258 410.164 0 16.698 13.146 30.25 29.342 30.25 16.237 0 29.361-13.533 29.361-30.25 0-206.897 163.338-375.23 364.105-375.23 2.464 0 4.814-0.393 7.088-0.979 140.397-9.999 251.715-130.587 251.715-277.761M487.971 527.531c-116.778 0-211.782-97.892-211.782-218.261 0-120.349 95.006-218.243 211.782-218.243 116.795 0 211.802 97.892 211.802 218.243 0.021 120.369-95.006 218.261-211.802 218.261M544.27 685.59c0 16.681 13.161 30.25 29.361 30.25h344.113c16.237 0 29.361-13.549 29.361-30.25 0-16.698-13.124-30.25-29.361-30.25h-344.113c-16.197 0-29.361 13.549-29.361 30.25M917.739 779.040h-344.113c-16.197 0-29.361 13.533-29.361 30.267 0 16.698 13.161 30.25 29.361 30.25h344.113c16.237 0 29.361-13.533 29.361-30.25 0-16.735-13.124-30.267-29.361-30.267M917.739 917.866h-344.113c-16.197 0-29.361 13.533-29.361 30.25s13.161 30.25 29.361 30.25h344.113c16.237 0 29.361-13.533 29.361-30.25s-13.124-30.25-29.361-30.25z" />
                                             </Path.Data>
                                         </Path>
 
-                                        <!-- 2. 矢量底部横线（修复消失问题，添加默认向上阴影） -->
+                                        <!--  2. 矢量底部横线（修复消失问题，添加默认向上阴影）  -->
                                         <Path
-            x:Name="UserName_Line"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Bottom" StrokeLineJoin="Round"
-StrokeStartLineCap="Round"
-StrokeEndLineCap="Round"
-                                            Stretch="Fill"
-            RenderOptions.BitmapScalingMode="HighQuality"
-            Stroke="#a2a4a7"
-            StrokeThickness="1"
+                                            x:Name="UserName_Line"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Bottom"
+                                            Cursor=""
+                                            IsHitTestVisible="False"
                                             Opacity="0.8"
-            IsHitTestVisible="False" Cursor="">
-                                            <!-- 应用横线样式 -->
+                                            RenderOptions.BitmapScalingMode="HighQuality"
+                                            Stretch="Fill"
+                                            Stroke="#a2a4a7"
+                                            StrokeEndLineCap="Round"
+                                            StrokeLineJoin="Round"
+                                            StrokeStartLineCap="Round"
+                                            StrokeThickness="1">
+                                            <!--  应用横线样式  -->
 
                                             <Path.Data>
                                                 <PathGeometry Figures="M0,0 L1,0" />
-                                                <!-- 自适应宽度直线 -->
+                                                <!--  自适应宽度直线  -->
                                             </Path.Data>
 
-                                            <!-- 默认向上阴影（满足需求：默认状态有轻微上阴影） -->
+                                            <!--  默认向上阴影（满足需求：默认状态有轻微上阴影）  -->
                                             <Path.Effect>
                                                 <DropShadowEffect
-                    BlurRadius="2"
-                    Color="#686969" 
+                                                    BlurRadius="2"
+                                                    Direction="90"
                                                     Opacity="0.2"
-                    Direction="90"
-                                                   
-                                                    ShadowDepth="1" />
-                                                    <!-- 阴影距离，1px 更自然 -->
+                                                    ShadowDepth="1"
+                                                    Color="#686969" />
+                                                <!--  阴影距离，1px 更自然  -->
                                             </Path.Effect>
                                         </Path>
 
-                                        <!-- 交互样式：悬浮/焦点时图标+横线变色（统一控制） -->
+                                        <!--  交互样式：悬浮/焦点时图标+横线变色（统一控制）  -->
                                         <Grid.Resources>
-                                            <!-- 图标样式：悬浮/焦点变色 -->
-                                            <Style TargetType="Path" x:Key="IconStyle">
+                                            <!--  图标样式：悬浮/焦点变色  -->
+                                            <Style x:Key="IconStyle" TargetType="Path">
                                                 <Style.Triggers>
-                                                    <!-- Border 悬浮时变色 -->
+                                                    <!--  Border 悬浮时变色  -->
                                                     <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}" Value="True">
                                                         <Setter Property="Stroke" Value="#FF0078D7" />
                                                         <Setter Property="Opacity" Value="1" />
                                                     </DataTrigger>
-                                                    <!-- 输入框焦点时变色（优先级高于悬浮） -->
+                                                    <!--  输入框焦点时变色（优先级高于悬浮）  -->
                                                     <DataTrigger Binding="{Binding IsFocused, ElementName=UserName_Box}" Value="True">
                                                         <Setter Property="Stroke" Value="#FF0078D7" />
                                                         <Setter Property="Opacity" Value="1" />
@@ -578,36 +581,36 @@ StrokeEndLineCap="Round"
                                                 </Style.Triggers>
                                             </Style>
 
-                                            <!-- 横线样式：与图标同步变色，阴影同步调整 -->
-                                            <Style TargetType="Path" x:Key="LineStyle">
+                                            <!--  横线样式：与图标同步变色，阴影同步调整  -->
+                                            <Style x:Key="LineStyle" TargetType="Path">
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}" Value="True">
                                                         <Setter Property="Stroke" Value="#FF0078D7" />
                                                         <Setter Property="Opacity" Value="1" />
-                                                        <!-- 悬浮时阴影变深，增强视觉反馈 -->
+                                                        <!--  悬浮时阴影变深，增强视觉反馈  -->
                                                         <Setter Property="Effect">
                                                             <Setter.Value>
                                                                 <DropShadowEffect
-                                    BlurRadius="2"
-                                    Color="#DDDDDD"
-                                    Opacity="0.9"
-                                    Direction="90"
-                                    ShadowDepth="1" />
+                                                                    BlurRadius="2"
+                                                                    Direction="90"
+                                                                    Opacity="0.9"
+                                                                    ShadowDepth="1"
+                                                                    Color="#DDDDDD" />
                                                             </Setter.Value>
                                                         </Setter>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding IsFocused, ElementName=UserName_Box}" Value="True">
                                                         <Setter Property="Stroke" Value="#FF0078D7" />
                                                         <Setter Property="Opacity" Value="1" />
-                                                        <!-- 焦点时阴影与悬浮一致 -->
+                                                        <!--  焦点时阴影与悬浮一致  -->
                                                         <Setter Property="Effect">
                                                             <Setter.Value>
                                                                 <DropShadowEffect
-                                    BlurRadius="2"
-                                    Color="#DDDDDD"
-                                    Opacity="0.9"
-                                    Direction="90"
-                                    ShadowDepth="1" />
+                                                                    BlurRadius="2"
+                                                                    Direction="90"
+                                                                    Opacity="0.9"
+                                                                    ShadowDepth="1"
+                                                                    Color="#DDDDDD" />
                                                             </Setter.Value>
                                                         </Setter>
                                                     </DataTrigger>
@@ -622,127 +625,128 @@ StrokeEndLineCap="Round"
                             <Grid Grid.Row="1">
 
                                 <Border
-    Width="220"
-    Height="50"
-    Margin="0,0,35,0"
-    HorizontalAlignment="Right"
-    VerticalAlignment="Top"
-    MouseEnter="UserPass_Box_MouseEnter"
-    MouseLeave="UserPass_Box_MouseLeave"
-    Background="Transparent">
+                                    Width="220"
+                                    Height="50"
+                                    Margin="0,0,35,0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Background="Transparent"
+                                    MouseEnter="UserPass_Box_MouseEnter"
+                                    MouseLeave="UserPass_Box_MouseLeave">
 
                                     <Grid>
                                         <Label
-            x:Name="UserPass_Box_Text"
-            Margin="35,0,40,0"  
+                                            x:Name="UserPass_Box_Text"
+                                            Margin="35,0,40,0"
                                             HorizontalAlignment="Left"
-            VerticalAlignment="Center"
-            Panel.ZIndex="1"
-            Content="密码"
-            FontSize="14"
-            Foreground="#FF7F7F7F" />
+                                            VerticalAlignment="Center"
+                                            Panel.ZIndex="1"
+                                            Content="密码"
+                                            FontSize="14"
+                                            Foreground="#FF7F7F7F" />
 
-                                            <PasswordBox
-            x:Name="UserPass_Box"
-            Margin="35,8,40,8" 
-                                                VerticalContentAlignment="Center"
-            Panel.ZIndex="2"
-            Background="{x:Null}"
-            BorderBrush="{x:Null}"
-            BorderThickness="0"
-            CaretBrush="#FF7F7F7F"
-            FontSize="17"
-            Foreground="Black"
-            GotFocus="UserPass_Box_GotFocus"
-            Keyboard.KeyUp="UserPass_Box_KeyUp"
-            LostFocus="UserPass_Box_LostFocus"
-            SelectionBrush="#FF0078D7" />
+                                        <PasswordBox
+                                            x:Name="UserPass_Box"
+                                            Margin="35,8,40,8"
+                                            VerticalContentAlignment="Center"
+                                            Panel.ZIndex="2"
+                                            Background="{x:Null}"
+                                            BorderBrush="{x:Null}"
+                                            BorderThickness="0"
+                                            CaretBrush="#FF7F7F7F"
+                                            FontSize="17"
+                                            Foreground="Black"
+                                            GotFocus="UserPass_Box_GotFocus"
+                                            Keyboard.KeyUp="UserPass_Box_KeyUp"
+                                            LostFocus="UserPass_Box_LostFocus"
+                                            SelectionBrush="#FF0078D7" />
 
-                                                <Grid
-            x:Name="Login_Button"
-            Width="30"
-            Height="30"
-            Margin="0,0,5,0"
-            HorizontalAlignment="Right"
-            Panel.ZIndex="1"
-            MouseEnter="Login_Button_MouseEnter"
-            MouseDown="Login_Button_MouseDown"
-            MouseUp="Login_Button_MouseUp"
-            MouseLeave="Login_Button_MouseLeave"
-            Cursor="Hand"
-            Background="Transparent">
+                                        <Grid
+                                            x:Name="Login_Button"
+                                            Width="30"
+                                            Height="30"
+                                            Margin="0,0,5,0"
+                                            HorizontalAlignment="Right"
+                                            Panel.ZIndex="1"
+                                            Background="Transparent"
+                                            Cursor="Hand"
+                                            MouseDown="Login_Button_MouseDown"
+                                            MouseEnter="Login_Button_MouseEnter"
+                                            MouseLeave="Login_Button_MouseLeave"
+                                            MouseUp="Login_Button_MouseUp">
 
-                                                    <Path
-                x:Name="Login_Icon"
-                Stretch="Uniform"
-                RenderOptions.BitmapScalingMode="HighQuality"
-                Stroke="#bfbfbf"
-                StrokeThickness="0.1"
-                StrokeLineJoin="Round"
-                StrokeStartLineCap="Round"
-                StrokeEndLineCap="Round"
-                Fill="#bfbfbf"
-                RenderTransformOrigin="0.5,0.5"
-                IsHitTestVisible="False">
-                                                        <Path.Data>
-                                                            <PathGeometry Figures="M512 992a480 480 0 1 0 0-960 480 480 0 0 0 0 960z m0-64a416 416 0 1 1 0-832 416 416 0 0 1 0 832z m114.752-448l-128-128 45.248-45.248L749.248 512 544 717.248l-45.248-45.248 128-128H256v-64h370.752z" />
-                                                        </Path.Data>
-                                                    </Path>
-                                                </Grid>
+                                            <Path
+                                                x:Name="Login_Icon"
+                                                Fill="#bfbfbf"
+                                                IsHitTestVisible="False"
+                                                RenderOptions.BitmapScalingMode="HighQuality"
+                                                RenderTransformOrigin="0.5,0.5"
+                                                Stretch="Uniform"
+                                                Stroke="#bfbfbf"
+                                                StrokeEndLineCap="Round"
+                                                StrokeLineJoin="Round"
+                                                StrokeStartLineCap="Round"
+                                                StrokeThickness="0.1">
+                                                <Path.Data>
+                                                    <PathGeometry Figures="M512 992a480 480 0 1 0 0-960 480 480 0 0 0 0 960z m0-64a416 416 0 1 1 0-832 416 416 0 0 1 0 832z m114.752-448l-128-128 45.248-45.248L749.248 512 544 717.248l-45.248-45.248 128-128H256v-64h370.752z" />
+                                                </Path.Data>
+                                            </Path>
+                                        </Grid>
 
-                                                <!-- 1. 矢量密码图标（替换原 UserPass_Img） -->
-                                                <Path
-            x:Name="UserPass_Icon"
-            Width="16"
-            Height="16"
-            Margin="10,0,0,0" 
-                                                    HorizontalAlignment="Left"
-            VerticalAlignment="Center"
-            Stretch="Uniform"
-            RenderOptions.BitmapScalingMode="HighQuality"
-            Stroke="#CCCCCC"
-            StrokeThickness="0.1"
-            StrokeLineJoin="Round"
-            StrokeStartLineCap="Round"
-            StrokeEndLineCap="Round"
-            Fill="#bfbfbf"
-                                                    Opacity="0.8"
-            IsHitTestVisible="False">
-
-                                                    <!-- 核心：密码 SVG 路径数据（转换为 WPF 格式） -->
-                                                    <Path.Data>
-                                                <PathGeometry Figures="M807.103 340.337h-26.243c0.076-0.983 0.12-1.974 0.115-2.971l0.585-57.248c-0.571-128.028-76.836-230.729-194.278-261.626-23.637-6.219-48.594-9.311-74.163-9.198-74.863 0.344-142.728 28.999-191.085 80.692-47.059 50.314-72.792 118.694-72.445 192.43l-2.179 57.178 2.824 0.743h-35.213c-74.128 0-134.431 60.301-134.431 134.42v394.725c0 74.118 60.301 134.42 134.431 134.42h592.081c74.118 0 134.42-60.301 134.42-134.42v-394.726c0-74.118-60.302-134.419-134.42-134.419zM513.441 80.786c19.063-0.089 37.597 2.193 55.087 6.795 85.56 22.509 141.126 98.216 141.562 192.824l-0.584 57.243c0.004 0.905 0.054 1.8 0.125 2.691h-390.774l2.201-58.123c-0.526-116.209 80.382-200.926 192.384-201.43zM870.045 869.482c0 34.708-28.238 62.942-62.942 62.942h-592.081c-34.714 0-62.952-28.239-62.952-62.942v-394.725c0-34.706 28.239-62.936 62.952-62.936h592.081c34.703 0 62.942 28.23 62.942 62.936v394.725zM511.061 537.7c-37.842 0-68.631 30.788-68.631 68.63 0 23.86 12.558 46.158 32.888 58.587v105.888c0 19.704 16.030 35.735 35.744 35.735 19.703 0 35.735-16.031 35.735-35.735v-105.888c20.339-12.42 32.897-34.723 32.897-58.587-0.002-37.843-30.791-68.63-68.633-68.63z" />
-                                                    </Path.Data>
-                                                </Path>
-
-                                                <!-- 2. 矢量底部横线（与用户名输入框一致） -->
-                                                <Path
-            x:Name="UserPass_Line"
-                        VerticalAlignment="Bottom" StrokeLineJoin="Round"
-StrokeStartLineCap="Round"
-StrokeEndLineCap="Round"
-                                            Stretch="Fill"
-            RenderOptions.BitmapScalingMode="HighQuality"
-            Stroke="#a2a4a7"
-            StrokeThickness="1"
+                                        <!--  1. 矢量密码图标（替换原 UserPass_Img）  -->
+                                        <Path
+                                            x:Name="UserPass_Icon"
+                                            Width="16"
+                                            Height="16"
+                                            Margin="10,0,0,0"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Fill="#bfbfbf"
+                                            IsHitTestVisible="False"
                                             Opacity="0.8"
-            IsHitTestVisible="False" Cursor="">
+                                            RenderOptions.BitmapScalingMode="HighQuality"
+                                            Stretch="Uniform"
+                                            Stroke="#CCCCCC"
+                                            StrokeEndLineCap="Round"
+                                            StrokeLineJoin="Round"
+                                            StrokeStartLineCap="Round"
+                                            StrokeThickness="0.1">
 
-                                                    <Path.Data>
-                                                        <PathGeometry Figures="M0,0 L1,0" />
-                                                        <!-- 自适应宽度直线 -->
-                                                    </Path.Data>
+                                            <!--  核心：密码 SVG 路径数据（转换为 WPF 格式）  -->
+                                            <Path.Data>
+                                                <PathGeometry Figures="M807.103 340.337h-26.243c0.076-0.983 0.12-1.974 0.115-2.971l0.585-57.248c-0.571-128.028-76.836-230.729-194.278-261.626-23.637-6.219-48.594-9.311-74.163-9.198-74.863 0.344-142.728 28.999-191.085 80.692-47.059 50.314-72.792 118.694-72.445 192.43l-2.179 57.178 2.824 0.743h-35.213c-74.128 0-134.431 60.301-134.431 134.42v394.725c0 74.118 60.301 134.42 134.431 134.42h592.081c74.118 0 134.42-60.301 134.42-134.42v-394.726c0-74.118-60.302-134.419-134.42-134.419zM513.441 80.786c19.063-0.089 37.597 2.193 55.087 6.795 85.56 22.509 141.126 98.216 141.562 192.824l-0.584 57.243c0.004 0.905 0.054 1.8 0.125 2.691h-390.774l2.201-58.123c-0.526-116.209 80.382-200.926 192.384-201.43zM870.045 869.482c0 34.708-28.238 62.942-62.942 62.942h-592.081c-34.714 0-62.952-28.239-62.952-62.942v-394.725c0-34.706 28.239-62.936 62.952-62.936h592.081c34.703 0 62.942 28.23 62.942 62.936v394.725zM511.061 537.7c-37.842 0-68.631 30.788-68.631 68.63 0 23.86 12.558 46.158 32.888 58.587v105.888c0 19.704 16.030 35.735 35.744 35.735 19.703 0 35.735-16.031 35.735-35.735v-105.888c20.339-12.42 32.897-34.723 32.897-58.587-0.002-37.843-30.791-68.63-68.633-68.63z" />
+                                            </Path.Data>
+                                        </Path>
 
-                                                    <!-- 默认向上轻微阴影（与用户名输入框统一） -->
+                                        <!--  2. 矢量底部横线（与用户名输入框一致）  -->
+                                        <Path
+                                            x:Name="UserPass_Line"
+                                            VerticalAlignment="Bottom"
+                                            Cursor=""
+                                            IsHitTestVisible="False"
+                                            Opacity="0.8"
+                                            RenderOptions.BitmapScalingMode="HighQuality"
+                                            Stretch="Fill"
+                                            Stroke="#a2a4a7"
+                                            StrokeEndLineCap="Round"
+                                            StrokeLineJoin="Round"
+                                            StrokeStartLineCap="Round"
+                                            StrokeThickness="1">
+
+                                            <Path.Data>
+                                                <PathGeometry Figures="M0,0 L1,0" />
+                                                <!--  自适应宽度直线  -->
+                                            </Path.Data>
+
+                                            <!--  默认向上轻微阴影（与用户名输入框统一）  -->
                                             <Path.Effect>
                                                 <DropShadowEffect
-BlurRadius="2"
-Color="#686969" 
-                                Opacity="0.2"
-Direction="90"
-                               
-                                ShadowDepth="1" />
-                                                <!-- 阴影距离，1px 更自然 -->
+                                                    BlurRadius="2"
+                                                    Direction="90"
+                                                    Opacity="0.2"
+                                                    ShadowDepth="1"
+                                                    Color="#686969" />
+                                                <!--  阴影距离，1px 更自然  -->
                                             </Path.Effect>
                                         </Path>
                                     </Grid>
@@ -780,9 +784,9 @@ Direction="90"
                                     Content="找回密码"
                                     Cursor="Hand"
                                     Foreground="#FF727272"
+                                    MouseDown="Retrieve_Button_MouseDown"
                                     MouseEnter="Retrieve_Button_MouseEnter"
                                     MouseLeave="Retrieve_Button_MouseLeave"
-                                    MouseDown="Retrieve_Button_MouseDown"
                                     MouseUp="Retrieve_Button_MouseUp" />
                             </Grid>
 
@@ -807,8 +811,8 @@ Direction="90"
                                     Content="注册账号"
                                     Cursor="Hand"
                                     Foreground="#FF727272"
-                                    MouseEnter="Register_Button_MouseEnter"
                                     MouseDown="Register_Button_MouseDown"
+                                    MouseEnter="Register_Button_MouseEnter"
                                     MouseLeave="Register_Button_MouseLeave"
                                     MouseUp="Register_Button_MouseUp" />
 
@@ -1332,7 +1336,7 @@ Direction="90"
                         Background="#FF1E6FFF"
                         CornerRadius="5"
                         Cursor="Hand"
-                        MouseDown="Loading_Button_MouseDown"  
+                        MouseDown="Loading_Button_MouseDown"
                         MouseEnter="Loading_Button_MouseEnter"
                         MouseLeave="Loading_Button_MouseLeave"
                         MouseUp="Loading_Button_MouseUp"
@@ -1344,7 +1348,7 @@ Direction="90"
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             Content="返回"
-                            Foreground="White" />           
+                            Foreground="White" />
                     </Border>
 
                 </Grid>

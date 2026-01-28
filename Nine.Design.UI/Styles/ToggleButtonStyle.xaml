@@ -5,6 +5,12 @@
     xmlns:pucore="clr-namespace:Panuon.WPF;assembly=Panuon.WPF"
     xmlns:purs="clr-namespace:Panuon.WPF.UI.Resources;assembly=Panuon.WPF.UI">
     <ResourceDictionary.MergedDictionaries>
+        <!--<ResourceDictionary>
+        -->
+        <!--<FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>-->
+        <!--
+            <FontFamily x:Key="PanuonIconFont">/Panuon.WPF.UI;component/Resources/Fonts/#PanuonIcon</FontFamily>
+        </ResourceDictionary>-->
         <pucore:SharedResourceDictionary Source="/Panuon.WPF.UI;component/Styles/ToggleButtonStyle.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
@@ -20,7 +26,7 @@
         BasedOn="{StaticResource {x:Static purs:StyleKeys.ToggleButtonStyle}}"
         TargetType="ToggleButton">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="FontFamily" Value="/Nine.Design.UI;component/Resources/Fonts/#NDCIcon" />
+        <Setter Property="FontFamily" Value="{StaticResource PanuonIconFont}" />
         <Setter Property="FontSize" Value="16" />
     </Style>
 

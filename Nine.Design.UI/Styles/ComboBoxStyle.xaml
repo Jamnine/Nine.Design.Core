@@ -7,6 +7,12 @@
     <ResourceDictionary.MergedDictionaries>
         <pucore:SharedResourceDictionary Source="/Panuon.WPF.UI;component/Styles/ComboBoxStyle.xaml" />
         <pucore:SharedResourceDictionary Source="/Panuon.WPF.UI;component/Styles/ComboBoxItemStyle.xaml" />
+        <!--<ResourceDictionary>
+        -->
+        <!--<FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>-->
+        <!--
+            <FontFamily x:Key="PanuonIconFont">/Panuon.WPF.UI;component/Resources/Fonts/#PanuonIcon</FontFamily>
+        </ResourceDictionary>-->
     </ResourceDictionary.MergedDictionaries>
 
     <Style
@@ -39,8 +45,8 @@
         <Setter Property="pu:DropDownHelper.CornerRadius" Value="5" />
         <Setter Property="pu:ComboBoxHelper.ToggleArrowTransformControlStyle">
             <Setter.Value>
-                <Style BasedOn="{StaticResource {x:Static pu:ComboBoxHelper.ToggleArrowTransformControlStyle}}" TargetType="pu:TransformControl">
-                    <Setter Property="FontFamily" Value="/Nine.Design.UI;component/Resources/Fonts/#NDCIcon" />
+                <Style TargetType="pu:TransformControl">
+                    <Setter Property="FontFamily" Value="{StaticResource PanuonIconFont}" />
                     <Setter Property="Content" Value="&#xe901;" />
                     <Setter Property="FontSize" Value="12" />
                     <Setter Property="Margin" Value="0,0,5,0" />

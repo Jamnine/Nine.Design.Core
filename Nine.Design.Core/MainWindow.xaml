@@ -5,11 +5,14 @@
     xmlns:LayoutControl="clr-namespace:Nine.Design.Clientbase;assembly=Nine.Design.Clientbase"
     xmlns:cmd="clr-namespace:Nine.Design.Clientbase;assembly=Nine.Design.Clientbase"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:Nine.Design.Core.Helpers"
     xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
     xmlns:local="clr-namespace:Nine.Design.Core"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ndcui="clr-namespace:Nine.Design.UI;assembly=Nine.Design.UI"
     xmlns:pu="clr-namespace:Panuon.WPF.UI;assembly=Panuon.WPF.UI"
     xmlns:pucore="clr-namespace:Panuon.WPF;assembly=Panuon.WPF"
+    xmlns:pul="https://opensource.panuon.com/wpf-ui"
     xmlns:purs="clr-namespace:Panuon.WPF.UI.Resources;assembly=Panuon.WPF.UI"
     Width="950"
     Height="600"
@@ -21,7 +24,27 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/Panuon.WPF.UI;component/Control.xaml" />
+
+                <ResourceDictionary>
+                    <!--  x:Key的值是任意的，没有特殊要求  -->
+                    <pu:ToastSettings x:Key="toastSetting" Spacing="0">
+                        <pu:ToastSettings.LabelStyle>
+                            <Style BasedOn="{StaticResource {x:Static pu:Toast.LabelStyleKey}}" TargetType="Label">
+                                <Setter Property="Background" Value="#ffb7c5" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                                <Setter Property="pu:LabelHelper.CornerRadius" Value="15" />
+                                <Setter Property="pu:LabelHelper.ShadowColor" Value="#ffb7c5" />
+                                <Setter Property="pu:ShadowHelper.Opacity" Value="0.3" />
+                            </Style>
+                        </pu:ToastSettings.LabelStyle>
+                    </pu:ToastSettings>
+                </ResourceDictionary>
+                <ResourceDictionary>
+                    <!--<FontFamily x:Key="NDCIcon">/Nine.Design.UI;component/Resources/Fonts/#NDCIcon</FontFamily>-->
+                    <FontFamily x:Key="PanuonIconFont">/Panuon.WPF.UI;component/Resources/Fonts/#PanuonIcon</FontFamily>
+                </ResourceDictionary>
+                <pul:StyleDictionary Includes="All" />
+                <!--<ResourceDictionary Source="pack://application:,,,/Panuon.WPF.UI;component/Control.xaml" />-->
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ToggleButtonStyle.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/SearchBoxStyle.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/LabelStyle.xaml" />
@@ -34,6 +57,7 @@
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/ListBoxStyle.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Themes/Light.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/TrayMenuItemStyle.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Nine.Design.UI;component/Styles/CirclePointRingLoading.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
         </ResourceDictionary>
@@ -108,8 +132,8 @@
                     <ToggleButton
                         Grid.Column="1"
                         Width="60"
-                        pu:ToggleButtonHelper.CheckedContent="&#xe914;"
-                        Content="&#xe915;"
+                        pu:ToggleButtonHelper.CheckedContent="&#xe924;"
+                        Content="&#xe926;"
                         IsChecked="{Binding IsOpen, ElementName=DrwMenu, Mode=TwoWay}"
                         Style="{DynamicResource IconToggleButtonStyle}" />
                 </Grid>
@@ -118,12 +142,108 @@
                     Height="1"
                     Fill="{DynamicResource SeparatorBrush}" />
 
+
+                <Grid
+                    x:Name="Loading_Grid"
+                    Grid.Row="2"
+                    Width="0"
+                    Panel.ZIndex="9998"
+                    helpers:LoadingAnimationHelper.TriggerHideAnimation="{Binding TriggerHideAnimation}"
+                    helpers:LoadingAnimationHelper.TriggerShowAnimation="{Binding TriggerShowAnimation}"
+                    Background="#CCF7F7F7"
+                    Opacity="0">
+                    <!--  🔥 核心修改：动画移到外层Loading_Grid的Resources里  -->
+                    <Grid.Resources>
+                        <!--  模糊遮罩样式  -->
+                        <Style x:Key="BlurBackgroundStyle" TargetType="Grid">
+                            <Setter Property="Effect">
+                                <Setter.Value>
+                                    <BlurEffect Radius="8" />
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+
+                        <!--  ========== Loading_Start 动画（移到外层） ==========  -->
+                        <Storyboard x:Key="Loading_Start" Timeline.DesiredFrameRate="120">
+                            <DoubleAnimation
+                                SpeedRatio="1"
+                                Storyboard.TargetName="Loading_Grid"
+                                Storyboard.TargetProperty="Opacity"
+                                From="0"
+                                To="0.8"
+                                Duration="0:0:1" />
+                            <DoubleAnimation
+                                SpeedRatio="1"
+                                Storyboard.TargetName="Loading_Img"
+                                Storyboard.TargetProperty="Opacity"
+                                From="0"
+                                To="1"
+                                Duration="0:0:1" />
+                            <!--<DoubleAnimation
+                                SpeedRatio="1"
+                                Storyboard.TargetName="Loading_Img"
+                                Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                From="0.5"
+                                To="1"
+                                Duration="0:0:1" />
+                            <DoubleAnimation
+                                SpeedRatio="1"
+                                Storyboard.TargetName="Loading_Img"
+                                Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                From="0.5"
+                                To="1"
+                                Duration="0:0:1" />-->
+                        </Storyboard>
+
+                        <!--  ========== Loading_Hide 动画（移到外层） ==========  -->
+                        <Storyboard x:Key="Loading_Hide" Timeline.DesiredFrameRate="120">
+                            <DoubleAnimation
+                                SpeedRatio="1"
+                                Storyboard.TargetName="Loading_Grid"
+                                Storyboard.TargetProperty="Opacity"
+                                From="0.8"
+                                To="0"
+                                Duration="0:0:0.5" />
+                            <DoubleAnimation
+                                SpeedRatio="1"
+                                Storyboard.TargetName="Loading_Img"
+                                Storyboard.TargetProperty="Opacity"
+                                From="1"
+                                To="0"
+                                Duration="0:0:0.3" />
+                        </Storyboard>
+                    </Grid.Resources>
+
+                    <!--  模糊背景层  -->
+                    <Grid Panel.ZIndex="9998" Style="{StaticResource BlurBackgroundStyle}" />
+
+                    <!--  加载动画层  -->
+                    <Grid Panel.ZIndex="9999">
+                        <ndcui:CirclePointRingLoading
+                            x:Name="Loading_Img"
+                            Width="40"
+                            Height="40"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Panel.ZIndex="9999"
+                            Foreground="#FF1E6FFF"
+                            IsActive="True"
+                            IsLarge="False"
+                            Opacity="0"
+                            Visibility="Visible">
+                            <!--<ndcui:CirclePointRingLoading.RenderTransform>
+                                <ScaleTransform />
+                            </ndcui:CirclePointRingLoading.RenderTransform>-->
+                        </ndcui:CirclePointRingLoading>
+                    </Grid>
+                </Grid>
                 <TreeView
                     x:Name="MenuTreeView"
                     Grid.Row="2"
-                    Margin="0,0,3,0"
+                    Margin="3,0,2,0"
                     pu:ScrollBarHelper.HoverThumbBackground="#E0E0E0"
                     pu:ScrollBarHelper.ThumbBackground="#ffb7c5"
+                    pu:ScrollViewerHelper.ContentSpacing="5"
                     pu:ScrollViewerHelper.ScrollBarPosition="Outside"
                     pu:ScrollViewerHelper.ScrollBarThickness="3"
                     pu:TreeViewHelper.ItemsBackground="Transparent"
@@ -162,6 +282,7 @@
                                 IsHitTestVisible="True">
                                 <StackPanel Height="30" Orientation="Horizontal">
                                     <Label
+                                        Margin="-5"
                                         VerticalAlignment="Center"
                                         pu:LabelHelper.Icon="{Binding IconCode}"
                                         Background="Transparent"
@@ -237,26 +358,27 @@
                 <pu:SearchBox
                     Width="270"
                     Margin="20,0,0,0"
-                    Icon="&#xe911;"
+                    Icon="&#xe928;"
                     Style="{DynamicResource StandardSearchBoxStyle}"
                     Watermark="查找 ..." />
                 <Button
                     Grid.Column="2"
                     Margin="10,0,0,0"
                     pu:ButtonHelper.ClickEffect="Sink"
-                    Content="&#xe903;"
+                    Content="&#xe9bd;"
                     Style="{DynamicResource DescriptionIconButtonStyle}" />
                 <Button
                     Grid.Column="3"
                     Margin="10,0,0,0"
                     pu:ButtonHelper.ClickEffect="Sink"
-                    Content="&#xe90c;"
+                    Content="&#xe937;"
                     Style="{DynamicResource DescriptionIconButtonStyle}" />
                 <Button
                     Grid.Column="4"
                     Margin="10,0,0,0"
                     pu:ButtonHelper.ClickEffect="Sink"
-                    Content="&#xe90d;"
+                    Command="{Binding MsgClickComCommand}"
+                    Content="&#xe9bf;"
                     Style="{DynamicResource DescriptionIconButtonStyle}" />
                 <!--  最小化按钮  -->
                 <Button
@@ -335,7 +457,7 @@
                         <StackPanel>
                             <Button
                                 x:Name="btn_Exit"
-                                pu:ButtonHelper.Icon="&#xe904;"
+                                pu:ButtonHelper.Icon="&#xe933;"
                                 Click="btn_Exit_Click"
                                 Content="Exit"
                                 Style="{DynamicResource OptionsButtonStyle}" />

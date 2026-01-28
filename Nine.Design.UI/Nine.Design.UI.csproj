@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<!-- 多目标框架：覆盖 .NET Framework 4.5~4.8 和 .NET 5.0+ Windows 专用框架 -->
-		<TargetFrameworks>net45;net46;net47;net48;net5.0-windows;net6.0-windows;net7.0-windows;net8.0-windows;net9.0-windows;net10.0-windows</TargetFrameworks>
+		<TargetFrameworks>net46;net47;net48;net5.0-windows;net6.0-windows;net7.0-windows;net8.0-windows;net9.0-windows;net10.0-windows</TargetFrameworks>
 
 		<!-- 通用配置 -->
 		<Nullable>enable</Nullable>
@@ -44,6 +44,8 @@
 		<Reference Include="System.Xaml" />
 	</ItemGroup>
 	<ItemGroup>
+	  <None Remove="Resources\Fonts\NDCIcon.ttf" />
+	  <None Remove="Resources\Fonts\PanuonIcon.ttf" />
 	  <None Remove="Resources\Images\background_1.png" />
 	  <None Remove="Resources\Images\background_2.png" />
 	  <None Remove="Resources\Images\background_3.png" />
@@ -58,11 +60,9 @@
 
 	<!-- NuGet 包引用（确保兼容多框架） -->
 	<ItemGroup>
-		<PackageReference Include="Panuon.WPF" Version="1.0.1" />
-		<PackageReference Include="Panuon.WPF.UI" Version="1.1.6.5" />
+		<PackageReference Include="Panuon.WPF.UI" Version="1.3.0.2" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Resource Include="Resources\Fonts\NDCIcon.ttf" />
 	  <Resource Include="Resources\Images\background_1.png" />
 	  <Resource Include="Resources\Images\background_2.png" />
 	  <Resource Include="Resources\Images\background_3.png" />
@@ -73,6 +73,9 @@
 	  <Resource Include="Resources\Images\headimage_4.png" />
 	  <Resource Include="Resources\Images\logo.png" />
 	  <Resource Include="Resources\Images\sign_in_background.jpeg" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Resources\Fonts\" />
 	</ItemGroup>
 
 </Project>
