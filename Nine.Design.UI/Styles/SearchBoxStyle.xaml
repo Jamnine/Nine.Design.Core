@@ -11,7 +11,7 @@
     <Style x:Key="StandardSearchBoxStyle" TargetType="pu:SearchBox">
         <Setter Property="pu:IconHelper.Margin" Value="10,0,10,0" />
         <Setter Property="pu:IconHelper.Foreground" Value="{DynamicResource InputWatermarkForeground}" />
-        <Setter Property="pu:IconHelper.FontSize" Value="12" />
+        <Setter Property="pu:IconHelper.FontSize" Value="14" />
         <Setter Property="Padding" Value="0,5,10,5" />
         <Setter Property="Height" Value="30" />
         <Setter Property="FontSize" Value="14" />
@@ -29,6 +29,8 @@
         <Setter Property="pu:DropDownHelper.ShadowColor" Value="{DynamicResource DropDownShadowColor}" />
         <Setter Property="pu:DropDownHelper.MinHeight" Value="150" />
         <Setter Property="pu:DropDownHelper.CornerRadius" Value="5" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+
     </Style>
 
 </ResourceDictionary>
