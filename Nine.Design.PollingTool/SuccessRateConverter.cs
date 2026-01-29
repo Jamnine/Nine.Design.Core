@@ -130,39 +130,6 @@ namespace Nine.Design.PollingTool
             return _instance ?? (_instance = new BoolToColorConverter());
         }
     }
-
-    /// <summary>
-    /// 页面元素显隐转换器（0=总览显示，其他值=隐藏）
-    /// 继承MarkupExtension，支持XAML内联直接使用
-    /// </summary>
-    public class TabVisibilityConverter : MarkupExtension, IValueConverter
-    {
-        // 单例实例，提升XAML使用时的性能
-        private static TabVisibilityConverter _instance;
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            // 校验值为int类型且等于0，返回可见状态，否则折叠
-            if (value is int machineId && machineId == 0)
-            {
-                return Visibility.Visible;
-            }
-
-            return Visibility.Collapsed;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            // 反向转换未实现（无需使用）
-            throw new NotImplementedException();
-        }
-
-        public override object ProvideValue(IServiceProvider serviceProvider)
-        {
-            // 懒加载创建单例实例
-            return _instance ?? (_instance = new TabVisibilityConverter());
-        }
-    }
     #endregion
 
     #region 多值转换器（IMultiValueConverter）

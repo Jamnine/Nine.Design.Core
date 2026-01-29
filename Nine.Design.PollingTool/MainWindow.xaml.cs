@@ -21,14 +21,13 @@ using System.Windows.Threading;
 namespace Nine.Design.PollingTool
 {
     /// <summary>
-    /// 主窗口（完整功能，兼容C# 7.3 / .NET Framework 4.6）
+    /// 主窗口（重构后：单日志面板 + 机器过滤按钮）
     /// </summary>
     public partial class MainWindow : WindowX, INotifyPropertyChanged
     {
-        // 基础配置（保持原有不变，此处省略重复代码，仅展示修复点）
-        private ObservableCollection<MachineTabItemModel> _machineTabItems = new ObservableCollection<MachineTabItemModel>();
+        // 基础配置
         private Dictionary<int, MachineDataModel> _allMachineData = new Dictionary<int, MachineDataModel>();
-        private MachineDataModel _totalOverviewData = new MachineDataModel();
+        private MachineDataModel _currentDisplayData = new MachineDataModel(); // 当前显示的统计数据（全部/指定机器）
         private HttpMethod _selectedHttpMethod = HttpMethod.Post;
         private CancellationTokenSource _cts;
         private List<Task> _pollingTasks = new List<Task>();
@@ -36,7 +35,7 @@ namespace Nine.Design.PollingTool
         private bool _isPolling = false;
         private SynchronizationContext _uiContext;
 
-        // 日志配置（保持原有不变）
+        // 日志配置
         private readonly List<Brush> _logBrushes = new List<Brush>
         {
             Brushes.Black, Brushes.DarkBlue, Brushes.DarkGreen, Brushes.DarkRed,
@@ -50,13 +49,14 @@ namespace Nine.Design.PollingTool
         private const int FileOperationRetryCount = 3;
         private const int FileOperationRetryDelay = 100;
 
-        // 高频请求控制（保持原有不变）
+        // 高频请求控制（移除多机器日志缓存，保留全局日志和日志标记）
         private int _maxRequestsPerSecond = 200;
-        private readonly ConcurrentQueue<string> _totalLogCache = new ConcurrentQueue<string>();
-        private Dictionary<int, ConcurrentQueue<string>> _machineLogCaches = new Dictionary<int, ConcurrentQueue<string>>();
+        private readonly ConcurrentQueue<LogEntry> _globalLogQueue = new ConcurrentQueue<LogEntry>(); // 全局日志队列（带机器标记）
+        private List<LogEntry> _filteredLogList = new List<LogEntry>(); // 过滤后的日志列表
+        private int _currentFilterMachineId = 0; // 当前过滤的机器ID（0=全部）
         private DispatcherTimer _logUiTimer;
 
-        // 端口监控与统计（保持原有不变）
+        // 端口监控与统计
         private int _maxPortUsage = 50000;
         private DispatcherTimer _portMonitorTimer;
         private int _currentPortCount = 0;
@@ -66,7 +66,7 @@ namespace Nine.Design.PollingTool
         private DateTime _pollingStartTime;
         private DispatcherTimer _statsUpdateTimer;
 
-        // 多机器统计（保持原有不变）
+        // 多机器统计
         private readonly ConcurrentDictionary<int, int> _machineTotalRequests = new ConcurrentDictionary<int, int>();
         private readonly ConcurrentDictionary<int, int> _machineSuccessRequests = new ConcurrentDictionary<int, int>();
         private readonly ConcurrentDictionary<int, Dictionary<string, int>> _errorStats = new ConcurrentDictionary<int, Dictionary<string, int>>();
@@ -74,7 +74,7 @@ namespace Nine.Design.PollingTool
         private readonly ConcurrentDictionary<int, DateTime> _machineLastRequestTime = new ConcurrentDictionary<int, DateTime>();
         private TimeSpan _totalPollingTime = TimeSpan.Zero;
 
-        // 构造函数（保持原有不变，仅确保事件绑定完整）
+        // 构造函数
         public MainWindow()
         {
             InitializeComponent();
@@ -87,8 +87,6 @@ namespace Nine.Design.PollingTool
             InitializePortMonitorTimer();
             InitializeStatsTimer();
 
-            tcMachineOverview.ItemsSource = _machineTabItems;
-
             Loaded += (s, e) =>
             {
                 _uiContext = SynchronizationContext.Current;
@@ -98,11 +96,9 @@ namespace Nine.Design.PollingTool
                 txtEndpoint.TextChanged += TxtEndpoint_TextChanged;
                 btnStartPolling.IsEnabled = !string.IsNullOrWhiteSpace(txtEndpoint.Text);
                 _cts = new CancellationTokenSource();
-                UpdateMachineTabItems();
-                // 绑定Panuon专属值变更事件（关键：匹配补全的方法签名）
+                UpdateMachineFilterButtons(); // 替换原有UpdateMachineTabItems
                 txtMachineCount.ValueChanged += txtMachineCount_ValueChanged;
 
-                // 绑定历史记录加载按钮事件
                 if (btnLoadFromHistory != null)
                 {
                     btnLoadFromHistory.Click += LoadFromHistory_Click;
@@ -116,14 +112,14 @@ namespace Nine.Design.PollingTool
             Closing += MainWindow_Closing;
         }
 
-        // 窗口大小改变事件（保持原有不变）
+        // 窗口大小改变事件（保持不变）
         private void MetroWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             double scale = Math.Max(0.8, Math.Min(1.5, e.NewSize.Width / 1400));
             this.FontSize = 12 * scale;
         }
 
-        #region 初始化方法（保持原有不变，此处省略重复代码）
+        #region 初始化方法（保持原有，仅修改日志UI定时器逻辑）
         private void InitializeTcpParameters()
         {
             try
@@ -240,6 +236,7 @@ namespace Nine.Design.PollingTool
             _logUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _logUiTimer.Tick += LogUiTimer_Tick;
             _logUiTimer.Start();
+            AddLogEntry($"[系统] 日志UI定时器已启动，间隔：{_logUiTimer.Interval.TotalMilliseconds}ms", 0);
         }
 
         private void RegisterGlobalExceptionHandlers()
@@ -265,7 +262,7 @@ namespace Nine.Design.PollingTool
         }
         #endregion
 
-        #region 定时器回调（修复关键：FindVisualChild 调用指定具体类型 ListBox）
+        #region 定时器回调（重构：日志UI更新 + 统计更新）
         private void PortMonitorTimer_Tick(object sender, EventArgs e)
         {
             try
@@ -278,6 +275,12 @@ namespace Nine.Design.PollingTool
                 {
                     AddLogEntry($"[警告] 端口占用率已达80%（{_currentPortCount}/{_maxPortUsage}）", 0, true);
                 }
+
+                // 更新端口显示
+                Dispatcher.Invoke(() =>
+                {
+                    txtPortUsage.Text = $"{_currentPortCount}/{_maxPortUsage}";
+                });
             }
             catch (Exception ex)
             {
@@ -291,25 +294,48 @@ namespace Nine.Design.PollingTool
             {
                 Dispatcher.Invoke(() =>
                 {
-                    _totalOverviewData.TotalRequests = _totalRequestsSent;
-                    _totalOverviewData.SuccessRequests = _totalSuccessfulRequests;
+                    // 更新全局统计
+                    _totalSuccessfulRequests = _machineSuccessRequests.Values.Sum();
+                    _totalRequestsSent = _machineTotalRequests.Values.Sum();
 
-                    foreach (var kvp in _machineTotalRequests)
+                    // 更新当前显示的统计数据
+                    if (_currentFilterMachineId == 0)
                     {
-                        int machineId = kvp.Key;
-                        if (_allMachineData.ContainsKey(machineId))
+                        // 显示全部数据
+                        txtTotalRequests.Text = _totalRequestsSent.ToString();
+                        txtSuccessRequests.Text = _totalSuccessfulRequests.ToString();
+                        double successRate = _totalRequestsSent > 0 ? (double)_totalSuccessfulRequests / _totalRequestsSent * 100 : 0;
+                        txtSuccessRate.Text = $"{successRate:F2}%";
+                    }
+                    else
+                    {
+                        // 显示指定机器数据
+                        if (_machineTotalRequests.TryGetValue(_currentFilterMachineId, out int machineTotal))
                         {
-                            _allMachineData[machineId].TotalRequests = kvp.Value;
-                            int success = 0;
-                            if (_machineSuccessRequests.ContainsKey(machineId))
-                            {
-                                success = _machineSuccessRequests[machineId];
-                            }
-                            _allMachineData[machineId].SuccessRequests = success;
+                            txtTotalRequests.Text = machineTotal.ToString();
                         }
+                        else
+                        {
+                            txtTotalRequests.Text = "0";
+                        }
+
+                        if (_machineSuccessRequests.TryGetValue(_currentFilterMachineId, out int machineSuccess))
+                        {
+                            txtSuccessRequests.Text = machineSuccess.ToString();
+                        }
+                        else
+                        {
+                            txtSuccessRequests.Text = "0";
+                        }
+
+                        int total = int.Parse(txtTotalRequests.Text);
+                        int success = int.Parse(txtSuccessRequests.Text);
+                        double successRate = total > 0 ? (double)success / total * 100 : 0;
+                        txtSuccessRate.Text = $"{successRate:F2}%";
                     }
 
-                    OnPropertyChanged(nameof(RunTime));
+                    // 更新运行时长
+                    txtRunTime.Text = RunTime;
                 });
             }
             catch (Exception ex)
@@ -320,113 +346,88 @@ namespace Nine.Design.PollingTool
 
         private void LogUiTimer_Tick(object sender, EventArgs e)
         {
-            UpdateTabLogUI(0, _totalLogCache);
-            foreach (var kvp in _machineLogCaches)
-            {
-                UpdateTabLogUI(kvp.Key, kvp.Value);
-            }
+            UpdateGlobalLogUI(); // 重构：更新全局日志UI（带过滤）
         }
 
-        // 核心修复：UpdateTabLogUI 中调用 FindVisualChild 时指定具体类型 ListBox
-        private void UpdateTabLogUI(int machineId, ConcurrentQueue<string> logCache)
+        /// <summary>
+        /// 重构：更新全局日志UI，支持机器过滤
+        /// </summary>
+        private void UpdateGlobalLogUI()
         {
-            if (logCache.IsEmpty) return;
+            if (_globalLogQueue.IsEmpty) return;
 
-            List<string> logsToAdd = new List<string>();
+            // 1. 出队新日志，加入过滤列表
+            List<LogEntry> newLogs = new List<LogEntry>();
             int maxBatchSize = 100;
             int count = 0;
 
-            string log;
-            while (logCache.TryDequeue(out log) && count < maxBatchSize)
+            LogEntry logEntry;
+            while (_globalLogQueue.TryDequeue(out logEntry) && count < maxBatchSize)
             {
-                logsToAdd.Add(log);
+                newLogs.Add(logEntry);
+                _filteredLogList.Add(logEntry);
                 count++;
             }
 
-            // 找到对应页面的ListBox（修复：调用 FindVisualChild<ListBox> 明确类型）
-            ListBox targetListBox = null;
-            if (machineId == 0)
+            // 2. 过滤日志（根据当前选中的机器ID）
+            List<LogEntry> logsToDisplay = new List<LogEntry>();
+            if (_currentFilterMachineId == 0)
             {
-                MachineTabItemModel totalTab = null;
-                foreach (var tab in _machineTabItems)
-                {
-                    if (tab.MachineId == 0)
-                    {
-                        totalTab = tab;
-                        break;
-                    }
-                }
-                if (totalTab != null && tcMachineOverview.ItemContainerGenerator.ContainerFromItem(totalTab) is TabItem totalTabItem)
-                {
-                    // 修复：指定泛型类型为 ListBox，不再使用 T
-                    targetListBox = FindVisualChild<ListBox>(totalTabItem, "lbTabLogs");
-                }
+                logsToDisplay = _filteredLogList.ToList();
             }
             else
             {
-                MachineTabItemModel machineTab = null;
-                foreach (var tab in _machineTabItems)
-                {
-                    if (tab.MachineId == machineId)
-                    {
-                        machineTab = tab;
-                        break;
-                    }
-                }
-                if (machineTab != null && tcMachineOverview.ItemContainerGenerator.ContainerFromItem(machineTab) is TabItem machineTabItem)
-                {
-                    // 修复：指定泛型类型为 ListBox，不再使用 T
-                    targetListBox = FindVisualChild<ListBox>(machineTabItem, "lbTabLogs");
-                }
+                logsToDisplay = _filteredLogList.Where(l => l.MachineId == _currentFilterMachineId).ToList();
             }
 
-            if (targetListBox == null) return;
-
-            foreach (var logItemContent in logsToAdd)
+            // 3. 更新UI（先清空原有，再添加过滤后的日志，避免重复）
+            Dispatcher.Invoke(() =>
             {
-                bool isError = logItemContent.Contains("错误:") || logItemContent.Contains("警告:");
-                int targetMachineId = machineId;
-
-                ListBoxItem logItem = new ListBoxItem
+                // 限制日志最大数量，防止内存溢出
+                if (_filteredLogList.Count > 50000)
                 {
-                    Content = logItemContent,
-                    Padding = new Thickness(2)
-                };
-
-                if (isError)
-                {
-                    logItem.Foreground = Brushes.Red;
-                    logItem.FontWeight = FontWeights.Bold;
-                }
-                else if (targetMachineId > 0)
-                {
-                    int colorIndex = (targetMachineId - 1) % _logBrushes.Count;
-                    logItem.Foreground = _logBrushes[colorIndex];
-                }
-                else
-                {
-                    logItem.Foreground = Brushes.DarkGray;
+                    int removeCount = _filteredLogList.Count - 50000;
+                    _filteredLogList.RemoveRange(0, removeCount);
                 }
 
-                if (targetListBox.Items.Count > 50000)
+                // 清空当前日志列表，重新添加过滤后的日志
+                lbGlobalLogs.Items.Clear();
+                foreach (var log in logsToDisplay)
                 {
-                    for (int i = 0; i < 1000 && targetListBox.Items.Count > 0; i++)
+                    ListBoxItem logItem = new ListBoxItem
                     {
-                        targetListBox.Items.RemoveAt(0);
+                        Content = log.Message,
+                        Padding = new Thickness(2)
+                    };
+
+                    if (log.IsError)
+                    {
+                        logItem.Foreground = Brushes.Red;
+                        logItem.FontWeight = FontWeights.Bold;
                     }
+                    else if (log.MachineId > 0)
+                    {
+                        int colorIndex = (log.MachineId - 1) % _logBrushes.Count;
+                        logItem.Foreground = _logBrushes[colorIndex];
+                    }
+                    else
+                    {
+                        logItem.Foreground = Brushes.DarkGray;
+                    }
+
+                    lbGlobalLogs.Items.Add(logItem);
                 }
 
-                targetListBox.Items.Add(logItem);
-            }
-
-            if (logsToAdd.Count > 0 && targetListBox.Items.Count > 0)
-            {
-                targetListBox.ScrollIntoView(targetListBox.Items[targetListBox.Items.Count - 1]);
-            }
+                // 滚动到最新日志
+                if (lbGlobalLogs.Items.Count > 0)
+                {
+                    lbGlobalLogs.ScrollIntoView(lbGlobalLogs.Items[lbGlobalLogs.Items.Count - 1]);
+                }
+            });
         }
         #endregion
 
-        #region 核心业务逻辑（保持原有不变，此处省略重复代码）
+        #region 核心业务逻辑（重构：机器按钮 + 日志过滤 + 统计切换）
         private void HttpMethodChecked(object sender, RoutedEventArgs e)
         {
             try
@@ -449,79 +450,139 @@ namespace Nine.Design.PollingTool
             }
         }
 
-        private void UpdateMachineTabItems()
+        /// <summary>
+        /// 重构：创建/更新机器过滤按钮（替换原有Tab页面创建）
+        /// </summary>
+        private void UpdateMachineFilterButtons()
         {
             Dispatcher.Invoke(() =>
             {
                 try
                 {
-                    if (txtMachineCount == null || !txtMachineCount.Value.HasValue || txtMachineCount.Value <= 0)
+                    // 1. 获取当前机器数量
+                    int machineCount = 1;
+                    if (txtMachineCount.Value.HasValue && txtMachineCount.Value.Value > 0)
                     {
-                        AddLogEntry("[系统] 机器数量输入框无效或值非正整数，无法创建页面", 0);
-                        return;
+                        machineCount = (int)txtMachineCount.Value.Value;
                     }
 
-                    int machineCount = (int)txtMachineCount.Value.Value;
-
-                    _machineTabItems.Clear();
-                    _allMachineData.Clear();
-                    _machineLogCaches.Clear();
-                    ClearConcurrentQueue(_totalLogCache);
-                    _totalOverviewData = new MachineDataModel { MachineId = 0, TabTitle = "总览" };
-
-                    var totalTabItem = new MachineTabItemModel
+                    // 2. 清空原有机器按钮（保留「全部日志」按钮）
+                    var machineButtons = spMachineFilterButtons.Children.OfType<Button>().Where(b => b.Name != "btnAllLogs").ToList();
+                    foreach (var btn in machineButtons)
                     {
-                        TabTitle = "总览",
-                        MachineId = 0,
-                        MachineData = _totalOverviewData
-                    };
-                    _machineTabItems.Add(totalTabItem);
+                        spMachineFilterButtons.Children.Remove(btn);
+                    }
 
+                    // 3. 清空原有机器数据
+                    _allMachineData.Clear();
+                    // 注释：_machineLogCaches 已移除，无需兼容
+
+                    // 4. 初始化全局统计数据
+                    var totalOverviewData = new MachineDataModel();
+                    _allMachineData.Add(0, totalOverviewData);
+                    _currentDisplayData = totalOverviewData;
+
+                    // 5. 创建机器按钮和对应数据
                     for (int i = 1; i <= machineCount; i++)
                     {
-                        Dictionary<string, int> errorDict = new Dictionary<string, int>
-                        {
-                            { "超时", 0 }, { "网络错误", 0 }, { "HTTP错误", 0 },
-                            { "参数错误", 0 }, { "其他错误", 0 }, { "成功次数", 0 },
-                            { "端口超限", 0 }, { "频率限制", 0 }
-                        };
-                        _errorStats[i] = errorDict;
-
-                        Tuple<double, double> responseTuple = new Tuple<double, double>(double.MaxValue, double.MinValue);
-                        _responseTimeExtremes[i] = responseTuple;
-
-                        _machineLastRequestTime[i] = DateTime.MinValue;
-
-                        var machineData = new MachineDataModel
-                        {
-                            MachineId = i,
-                            IsPolling = false,
-                            TotalRequests = 0,
-                            SuccessRequests = 0,
-                            ErrorStats = new Dictionary<string, int>(_errorStats[i]),
-                            ResponseTimeExtremes = _responseTimeExtremes[i]
-                        };
+                        var machineData = new MachineDataModel();
                         _allMachineData.Add(i, machineData);
-                        _machineLogCaches.Add(i, new ConcurrentQueue<string>());
 
-                        var machineTabItem = new MachineTabItemModel
+                        // 创建机器过滤按钮
+                        Button machineBtn = new Button
                         {
-                            TabTitle = $"机器 {i}",
-                            MachineId = i,
-                            MachineData = machineData
+                            Content = $"机器 {i}",
+                            Style = (Style)FindResource("MachineFilterButtonStyle"),
+                            Tag = i // 存储机器ID
                         };
-                        _machineTabItems.Add(machineTabItem);
+                        machineBtn.Click += BtnMachineFilter_Click;
+                        spMachineFilterButtons.Children.Add(machineBtn);
                     }
 
-                    ResetAllStats();
-
-                    AddLogEntry($"[系统] 多页面创建成功，当前页面数量: {_machineTabItems.Count}（含总览）", 0);
+                    // 6. 打印日志
+                    AddLogEntry($"[系统] 机器过滤按钮创建成功，当前机器数量: {machineCount}", 0);
                 }
                 catch (Exception ex)
                 {
-                    AddLogEntry($"[系统] 创建多页面失败：{ex.Message}，异常堆栈：{ex.StackTrace}", 0, true);
+                    AddLogEntry($"[系统] 创建机器过滤按钮失败：{ex.Message}，异常堆栈：{ex.StackTrace}", 0, true);
                 }
             });
+        }
+
+        /// <summary>
+        /// 机器过滤按钮点击事件（新增）
+        /// </summary>
+        private void BtnMachineFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is int machineId)
+            {
+                // 1. 更新当前过滤机器ID
+                _currentFilterMachineId = machineId;
+
+                // 2. 更新按钮样式（高亮当前选中）
+                ResetFilterButtonStyles();
+                btn.Background = (SolidColorBrush)FindResource("PrimaryColor");
+
+                // 3. 更新统计数据和日志UI
+                // 修正点1：Dictionary 改用 TryGetValue 替代 GetValueOrDefault（兼容所有框架版本）
+                if (_allMachineData.TryGetValue(machineId, out MachineDataModel machineData))
+                {
+                    _currentDisplayData = machineData;
+                }
+                else
+                {
+                    // 若未找到，使用默认实例（保持原有逻辑）
+                    _currentDisplayData = new MachineDataModel();
+                }
+
+                UpdateGlobalLogUI(); // 强制刷新日志
+                StatsUpdateTimer_Tick(null, null); // 强制刷新统计
+
+                AddLogEntry($"[系统] 已切换到「机器 {machineId}」的日志和统计", 0);
+            }
+        }
+
+        /// <summary>
+        /// 全部日志按钮点击事件（新增）
+        /// </summary>
+        private void BtnAllLogs_Click(object sender, EventArgs e)
+        {
+            // 1. 重置过滤机器ID为0（全部）
+            _currentFilterMachineId = 0;
+
+            // 2. 更新按钮样式
+            ResetFilterButtonStyles();
+            btnAllLogs.Background = (SolidColorBrush)FindResource("PrimaryColor");
+
+            // 3. 更新统计数据和日志UI
+            // 修正点2：Dictionary 改用 TryGetValue 替代 GetValueOrDefault
+            if (_allMachineData.TryGetValue(0, out MachineDataModel globalData))
+            {
+                _currentDisplayData = globalData;
+            }
+            else
+            {
+                _currentDisplayData = new MachineDataModel();
+            }
+
+            UpdateGlobalLogUI();
+            StatsUpdateTimer_Tick(null, null);
+
+            AddLogEntry("[系统] 已切换到「全部日志」和全局统计", 0);
+        }
+
+        /// <summary>
+        /// 重置过滤按钮样式（辅助方法，新增）
+        /// </summary>
+        private void ResetFilterButtonStyles()
+        {
+            foreach (var child in spMachineFilterButtons.Children)
+            {
+                if (child is Button btn)
+                {
+                    btn.Background = (SolidColorBrush)FindResource("SecondaryColor");
+                }
+            }
         }
 
         private void ResetAllStats()
@@ -532,60 +593,33 @@ namespace Nine.Design.PollingTool
                 _totalSuccessfulRequests = 0;
             }
 
-            _totalOverviewData.TotalRequests = 0;
-            _totalOverviewData.SuccessRequests = 0;
-            _totalOverviewData.ErrorStats = new Dictionary<string, int>
-            {
-                { "超时", 0 }, { "网络错误", 0 }, { "HTTP错误", 0 },
-                { "参数错误", 0 }, { "其他错误", 0 }, { "成功次数", 0 },
-                { "端口超限", 0 }, { "频率限制", 0 }
-            };
-            _totalOverviewData.ResponseTimeExtremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
-
-            foreach (var kvp in _allMachineData)
-            {
-                var machineData = kvp.Value;
-                machineData.TotalRequests = 0;
-                machineData.SuccessRequests = 0;
-                machineData.ErrorStats = new Dictionary<string, int>
-                {
-                    { "超时", 0 }, { "网络错误", 0 }, { "HTTP错误", 0 },
-                    { "参数错误", 0 }, { "其他错误", 0 }, { "成功次数", 0 },
-                    { "端口超限", 0 }, { "频率限制", 0 }
-                };
-                machineData.ResponseTimeExtremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
-                machineData.LastRequestTime = DateTime.MinValue;
-            }
+            _allMachineData.Clear();
+            _allMachineData.Add(0, new MachineDataModel());
 
             _machineTotalRequests.Clear();
             _machineSuccessRequests.Clear();
             _errorStats.Clear();
             _responseTimeExtremes.Clear();
             _machineLastRequestTime.Clear();
+
+            // 清空过滤日志列表
+            _filteredLogList.Clear();
+            Dispatcher.Invoke(() =>
+            {
+                lbGlobalLogs.Items.Clear();
+            });
         }
 
         private void ClearLogs()
         {
+            // 清空所有日志队列和列表
+            _filteredLogList.Clear();
+            ClearConcurrentQueue(_globalLogQueue);
+
             Dispatcher.Invoke(() =>
             {
-                foreach (var tabItem in _machineTabItems)
-                {
-                    if (tcMachineOverview.ItemContainerGenerator.ContainerFromItem(tabItem) is TabItem uiTabItem)
-                    {
-                        var listBox = FindVisualChild<ListBox>(uiTabItem, "lbTabLogs");
-                        if (listBox != null)
-                        {
-                            listBox.Items.Clear();
-                        }
-                    }
-                }
+                lbGlobalLogs.Items.Clear();
             });
-
-            ClearConcurrentQueue(_totalLogCache);
-            foreach (var kvp in _machineLogCaches)
-            {
-                ClearConcurrentQueue(kvp.Value);
-            }
 
             AddLogEntry("[系统] 日志已清空", 0);
         }
@@ -602,66 +636,34 @@ namespace Nine.Design.PollingTool
         {
             lock (_requestCountLock)
             {
-                _totalRequestsSent++;
-                if (_machineTotalRequests.ContainsKey(machineId))
-                {
-                    _machineTotalRequests[machineId] = _machineTotalRequests[machineId] + 1;
-                }
-                else
-                {
-                    _machineTotalRequests[machineId] = 1;
-                }
-
                 if (isSuccess)
                 {
                     _totalSuccessfulRequests++;
-                    if (_machineSuccessRequests.ContainsKey(machineId))
-                    {
-                        _machineSuccessRequests[machineId] = _machineSuccessRequests[machineId] + 1;
-                    }
-                    else
-                    {
-                        _machineSuccessRequests[machineId] = 1;
-                    }
+                    _machineSuccessRequests.AddOrUpdate(machineId, 1, (k, v) => v + 1);
                 }
+                _totalRequestsSent++;
+                _machineTotalRequests.AddOrUpdate(machineId, 1, (k, v) => v + 1);
             }
         }
 
         private async Task PollEndpoint(int machineId, string endpoint, HttpMethod requestMethod, CancellationToken cancellationToken)
         {
             AddLogEntry($"轮询任务已启动（高频模式）", machineId);
-            Dictionary<string, int> machineStats = null;
-            if (_errorStats.ContainsKey(machineId))
+            Dictionary<string, int> machineStats = new Dictionary<string, int>
             {
-                machineStats = _errorStats[machineId];
-            }
-            else
-            {
-                machineStats = new Dictionary<string, int>
-                {
-                    { "超时", 0 }, { "网络错误", 0 }, { "HTTP错误", 0 },
-                    { "参数错误", 0 }, { "其他错误", 0 }, { "成功次数", 0 },
-                    { "端口超限", 0 }, { "频率限制", 0 }
-                };
-                _errorStats[machineId] = machineStats;
-            }
+                { "超时", 0 }, { "网络错误", 0 }, { "HTTP错误", 0 },
+                { "参数错误", 0 }, { "其他错误", 0 }, { "成功次数", 0 },
+                { "端口超限", 0 }, { "频率限制", 0 }
+            };
+            _errorStats[machineId] = machineStats;
+
             int maxRetryCount = 3;
 
             while (!cancellationToken.IsCancellationRequested && _isPolling)
             {
                 if (IsPortUsageExceeded())
                 {
-                    lock (machineStats)
-                    {
-                        if (machineStats.ContainsKey("端口超限"))
-                        {
-                            machineStats["端口超限"] = machineStats["端口超限"] + 1;
-                        }
-                        else
-                        {
-                            machineStats["端口超限"] = 1;
-                        }
-                    }
+                    machineStats["端口超限"]++;
                     AddLogEntry($"警告: 端口占用超限，暂停5秒", machineId);
                     await Task.Delay(5000, cancellationToken).ConfigureAwait(false);
                     continue;
@@ -676,34 +678,23 @@ namespace Nine.Design.PollingTool
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
+                        // 频率控制
                         TimeSpan delayTime = TimeSpan.Zero;
                         if (_maxRequestsPerSecond > 0)
                         {
+                            // 修正点3：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault
                             DateTime lastTime = DateTime.MinValue;
-                            if (_machineLastRequestTime.ContainsKey(machineId))
+                            if (_machineLastRequestTime.TryGetValue(machineId, out DateTime storedLastTime))
                             {
-                                lastTime = _machineLastRequestTime[machineId];
+                                lastTime = storedLastTime;
                             }
-                            else
-                            {
-                                _machineLastRequestTime[machineId] = DateTime.MinValue;
-                            }
+
                             var minInterval = TimeSpan.FromSeconds(1.0 / _maxRequestsPerSecond);
                             var currentTime = DateTime.Now;
                             if (currentTime - lastTime < minInterval)
                             {
                                 delayTime = minInterval - (currentTime - lastTime);
-                                lock (machineStats)
-                                {
-                                    if (machineStats.ContainsKey("频率限制"))
-                                    {
-                                        machineStats["频率限制"] = machineStats["频率限制"] + 1;
-                                    }
-                                    else
-                                    {
-                                        machineStats["频率限制"] = 1;
-                                    }
-                                }
+                                machineStats["频率限制"]++;
                             }
                             _machineLastRequestTime[machineId] = DateTime.Now;
 
@@ -718,12 +709,9 @@ namespace Nine.Design.PollingTool
                         HttpResponseMessage response = null;
                         bool isRequestProcessed = false;
 
-                        string jsonParameters = null;
-                        await Dispatcher.InvokeAsync(() =>
-                        {
-                            jsonParameters = GetJsonParameters();
-                        });
+                        string jsonParameters = await Dispatcher.InvokeAsync(() => GetJsonParameters());
 
+                        // 发送请求
                         if (requestMethod == HttpMethod.Get)
                         {
                             response = await _httpClient.GetAsync(endpoint, cancellationToken).ConfigureAwait(false);
@@ -740,138 +728,51 @@ namespace Nine.Design.PollingTool
                             else
                             {
                                 AddLogEntry($"警告: POST请求无参数", machineId);
-                                lock (machineStats)
-                                {
-                                    if (machineStats.ContainsKey("参数错误"))
-                                    {
-                                        machineStats["参数错误"] = machineStats["参数错误"] + 1;
-                                    }
-                                    else
-                                    {
-                                        machineStats["参数错误"] = 1;
-                                    }
-                                }
+                                machineStats["参数错误"]++;
                                 IncrementRequestCount(machineId, false);
                                 isRequestSuccess = true;
                                 break;
                             }
                         }
 
-                        if (isRequestProcessed)
+                        // 处理响应
+                        if (isRequestProcessed && response != null)
                         {
-                            await Task.Run(async () =>
+                            string result = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            bool isSuccess = response.IsSuccessStatusCode;
+                            TimeSpan responseTime = DateTime.Now - requestStartTime;
+                            double responseTimeMs = responseTime.TotalMilliseconds;
+
+                            // 更新响应时间极值
+                            // 修正点4：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault
+                            var currentExtremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
+                            if (_responseTimeExtremes.TryGetValue(machineId, out Tuple<double, double> storedExtremes))
                             {
-                                try
-                                {
-                                    string result = string.Empty;
-                                    bool isSuccess = false;
+                                currentExtremes = storedExtremes;
+                            }
+                            _responseTimeExtremes[machineId] = new Tuple<double, double>(
+                                Math.Min(currentExtremes.Item1, responseTimeMs),
+                                Math.Max(currentExtremes.Item2, responseTimeMs));
 
-                                    try
-                                    {
-                                        result = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                                        isSuccess = response.IsSuccessStatusCode;
+                            if (!isSuccess)
+                            {
+                                AddLogEntry($"{requestMethod.Method} | 响应: {responseTimeMs:F2}ms | 状态码: {(int)response.StatusCode} | 结果: {result}", machineId);
+                                machineStats["HTTP错误"]++;
+                            }
+                            else
+                            {
+                                AddLogEntry($"{requestMethod.Method} | 响应: {responseTimeMs:F2}ms | 结果: {result}", machineId);
+                                machineStats["成功次数"]++;
+                            }
 
-                                        TimeSpan responseTime = DateTime.Now - requestStartTime;
-                                        double responseTimeMs = responseTime.TotalMilliseconds;
-                                        Tuple<double, double> currentExtremes = null;
-                                        if (_responseTimeExtremes.ContainsKey(machineId))
-                                        {
-                                            currentExtremes = _responseTimeExtremes[machineId];
-                                        }
-                                        else
-                                        {
-                                            currentExtremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
-                                            _responseTimeExtremes[machineId] = currentExtremes;
-                                        }
-                                        _responseTimeExtremes[machineId] = new Tuple<double, double>(
-                                            Math.Min(currentExtremes.Item1, responseTimeMs),
-                                            Math.Max(currentExtremes.Item2, responseTimeMs));
-
-                                        if (!isSuccess)
-                                        {
-                                            AddLogEntry($"{requestMethod.Method} | 响应: {responseTimeMs:F2}ms | 状态码: {(int)response.StatusCode} | 结果: {result}", machineId);
-                                            lock (machineStats)
-                                            {
-                                                if (machineStats.ContainsKey("HTTP错误"))
-                                                {
-                                                    machineStats["HTTP错误"] = machineStats["HTTP错误"] + 1;
-                                                }
-                                                else
-                                                {
-                                                    machineStats["HTTP错误"] = 1;
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                            AddLogEntry($"{requestMethod.Method} | 响应: {responseTimeMs:F2}ms | 结果: {result}", machineId);
-                                            lock (machineStats)
-                                            {
-                                                if (machineStats.ContainsKey("成功次数"))
-                                                {
-                                                    machineStats["成功次数"] = machineStats["成功次数"] + 1;
-                                                }
-                                                else
-                                                {
-                                                    machineStats["成功次数"] = 1;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        lock (machineStats)
-                                        {
-                                            if (machineStats.ContainsKey("其他错误"))
-                                            {
-                                                machineStats["其他错误"] = machineStats["其他错误"] + 1;
-                                            }
-                                            else
-                                            {
-                                                machineStats["其他错误"] = 1;
-                                            }
-                                        }
-                                        AddLogEntry($"响应处理错误: {ex.Message}", machineId, true);
-                                    }
-
-                                    IncrementRequestCount(machineId, isSuccess);
-
-                                }
-                                catch (Exception ex)
-                                {
-                                    IncrementRequestCount(machineId, false);
-                                    AddLogEntry($"响应处理异常: {ex.Message}", machineId, true);
-                                    lock (machineStats)
-                                    {
-                                        if (machineStats.ContainsKey("其他错误"))
-                                        {
-                                            machineStats["其他错误"] = machineStats["其他错误"] + 1;
-                                        }
-                                        else
-                                        {
-                                            machineStats["其他错误"] = 1;
-                                        }
-                                    }
-                                }
-                            }, cancellationToken).ConfigureAwait(false);
+                            IncrementRequestCount(machineId, isSuccess);
+                            isRequestSuccess = true;
                         }
-
-                        isRequestSuccess = true;
                     }
                     catch (HttpRequestException ex) when (ex.Message.Contains("每个套接字地址") || ex.Message.Contains("only use once"))
                     {
                         retryCount++;
-                        lock (machineStats)
-                        {
-                            if (machineStats.ContainsKey("网络错误"))
-                            {
-                                machineStats["网络错误"] = machineStats["网络错误"] + 1;
-                            }
-                            else
-                            {
-                                machineStats["网络错误"] = 1;
-                            }
-                        }
+                        machineStats["网络错误"]++;
                         AddLogEntry($"错误: 端口耗尽 - {ex.Message} (重试 {retryCount}/{maxRetryCount})", machineId, true);
                         IncrementRequestCount(machineId, false);
                         if (retryCount < maxRetryCount)
@@ -888,17 +789,7 @@ namespace Nine.Design.PollingTool
                         }
                         else
                         {
-                            lock (machineStats)
-                            {
-                                if (machineStats.ContainsKey("超时"))
-                                {
-                                    machineStats["超时"] = machineStats["超时"] + 1;
-                                }
-                                else
-                                {
-                                    machineStats["超时"] = 1;
-                                }
-                            }
+                            machineStats["超时"]++;
                             AddLogEntry($"错误: 请求超时（{_requestTimeoutSeconds}秒）", machineId, true);
                             IncrementRequestCount(machineId, false);
                         }
@@ -907,17 +798,7 @@ namespace Nine.Design.PollingTool
                     }
                     catch (HttpRequestException ex)
                     {
-                        lock (machineStats)
-                        {
-                            if (machineStats.ContainsKey("网络错误"))
-                            {
-                                machineStats["网络错误"] = machineStats["网络错误"] + 1;
-                            }
-                            else
-                            {
-                                machineStats["网络错误"] = 1;
-                            }
-                        }
+                        machineStats["网络错误"]++;
                         AddLogEntry($"错误: 网络异常 - {ex.Message}", machineId, true);
                         IncrementRequestCount(machineId, false);
                         retryCount = maxRetryCount;
@@ -925,17 +806,7 @@ namespace Nine.Design.PollingTool
                     }
                     catch (Exception ex)
                     {
-                        lock (machineStats)
-                        {
-                            if (machineStats.ContainsKey("其他错误"))
-                            {
-                                machineStats["其他错误"] = machineStats["其他错误"] + 1;
-                            }
-                            else
-                            {
-                                machineStats["其他错误"] = 1;
-                            }
-                        }
+                        machineStats["其他错误"]++;
                         AddLogEntry($"错误: {ex.Message}", machineId, true);
                         IncrementRequestCount(machineId, false);
                         retryCount = maxRetryCount;
@@ -958,7 +829,7 @@ namespace Nine.Design.PollingTool
                     AddLogEntry($"[系统] 请求频率更新为：{_maxRequestsPerSecond}次/秒", 0);
                 }
 
-                UpdateMachineTabItems();
+                UpdateMachineFilterButtons();
                 await StartPollingAsync();
                 SaveHistory();
             });
@@ -1004,6 +875,7 @@ namespace Nine.Design.PollingTool
                 _pollingStartTime = DateTime.Now;
                 ResetAllStats();
 
+                // 启动多机器轮询任务
                 for (int i = 1; i <= machineCount; i++)
                 {
                     int currentMachineId = i;
@@ -1079,7 +951,7 @@ namespace Nine.Design.PollingTool
         }
         #endregion
 
-        #region 辅助方法（补全缺失的两个方法，修复 FindVisualChild 签名）
+        #region 辅助方法（重构：日志条目 + 移除Tab相关查找）
         private int GetCurrentProcessTcpConnectionCount()
         {
             try
@@ -1153,28 +1025,29 @@ namespace Nine.Design.PollingTool
                 foreach (var kvp in _machineTotalRequests)
                 {
                     int machineId = kvp.Key;
+                    // 修正点5：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault
                     Dictionary<string, int> stats = new Dictionary<string, int>();
-                    if (_errorStats.ContainsKey(machineId))
+                    if (_errorStats.TryGetValue(machineId, out Dictionary<string, int> storedStats))
                     {
-                        stats = _errorStats[machineId];
+                        stats = storedStats;
                     }
+
+                    // 修正点6：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault（原有逻辑保留，仅替换取值方式）
                     Tuple<double, double> extremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
-                    if (_responseTimeExtremes.ContainsKey(machineId))
+                    if (_responseTimeExtremes.TryGetValue(machineId, out Tuple<double, double> storedExtremes))
                     {
-                        extremes = _responseTimeExtremes[machineId];
+                        extremes = storedExtremes;
                     }
 
                     int machineTotal = kvp.Value;
-                    int machineSuccess = 0;
-                    if (_machineSuccessRequests.ContainsKey(machineId))
+                    // 修正1：_machineSuccessRequests 是 ConcurrentDictionary，改用 TryGetValue 替代 GetValueOrDefault
+                    int machineSuccess = 0; // 先初始化默认值
+                    if (_machineSuccessRequests.TryGetValue(machineId, out int storedMachineSuccess))
                     {
-                        machineSuccess = _machineSuccessRequests[machineId];
+                        machineSuccess = storedMachineSuccess;
                     }
-                    double successRate = 0;
-                    if (machineTotal > 0)
-                    {
-                        successRate = (double)machineSuccess / machineTotal * 100;
-                    }
+
+                    double successRate = machineTotal > 0 ? (double)machineSuccess / machineTotal * 100 : 0;
 
                     string minTime = "无数据";
                     string maxTime = "无数据";
@@ -1184,14 +1057,25 @@ namespace Nine.Design.PollingTool
                         maxTime = $"{extremes.Item2:F2}ms";
                     }
 
+                    // 修正2：stats 是 Dictionary<string, int>，兼容低版本框架，改用 TryGetValue 替代 GetValueOrDefault
+                    // 先初始化各错误类型的默认值为 0
                     int timeoutCount = 0;
-                    if (stats.ContainsKey("超时")) timeoutCount = stats["超时"];
+                    if (stats.TryGetValue("超时", out int storedTimeoutCount))
+                    {
+                        timeoutCount = storedTimeoutCount;
+                    }
 
                     int networkErrorCount = 0;
-                    if (stats.ContainsKey("网络错误")) networkErrorCount = stats["网络错误"];
+                    if (stats.TryGetValue("网络错误", out int storedNetworkErrorCount))
+                    {
+                        networkErrorCount = storedNetworkErrorCount;
+                    }
 
                     int httpErrorCount = 0;
-                    if (stats.ContainsKey("HTTP错误")) httpErrorCount = stats["HTTP错误"];
+                    if (stats.TryGetValue("HTTP错误", out int storedHttpErrorCount))
+                    {
+                        httpErrorCount = storedHttpErrorCount;
+                    }
 
                     string summary = $"机器 {machineId} | 总请求: {machineTotal} | 成功: {machineSuccess} ({successRate:F2}%) | 最短响应: {minTime} | 最长响应: {maxTime} | 超时: {timeoutCount} | 网络错误: {networkErrorCount} | HTTP错误: {httpErrorCount}";
                     AddLogEntry(summary, 0);
@@ -1205,7 +1089,6 @@ namespace Nine.Design.PollingTool
             ClearLogs();
         }
 
-        // 补全缺失：从历史记录加载按钮点击事件（LoadFromHistory_Click）
         private void LoadFromHistory_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1218,7 +1101,6 @@ namespace Nine.Design.PollingTool
                     return;
                 }
 
-                // 读取并解析历史配置
                 string content = ReadFileContentWithRetry(historyPath);
                 var historyData = JsonConvert.DeserializeObject<Dictionary<string, string>>(content);
                 if (historyData == null || historyData.Count == 0)
@@ -1228,30 +1110,25 @@ namespace Nine.Design.PollingTool
                     return;
                 }
 
-                // 同步到UI控件
                 Dispatcher.Invoke(() =>
                 {
-                    // 加载Endpoint
                     if (historyData.ContainsKey("Endpoint"))
                     {
                         txtEndpoint.Text = historyData["Endpoint"];
                     }
 
-                    // 加载机器数量
                     int machineCount = 1;
                     if (historyData.ContainsKey("MachineCount") && int.TryParse(historyData["MachineCount"], out machineCount))
                     {
                         txtMachineCount.Value = machineCount;
                     }
 
-                    // 加载请求频率
                     int reqPerSec = 200;
                     if (historyData.ContainsKey("MaxRequestsPerSecond") && int.TryParse(historyData["MaxRequestsPerSecond"], out reqPerSec))
                     {
                         txtPollInterval.Value = reqPerSec;
                     }
 
-                    // 加载请求方法
                     if (historyData.ContainsKey("HttpMethod"))
                     {
                         if (historyData["HttpMethod"] == "Get")
@@ -1264,7 +1141,6 @@ namespace Nine.Design.PollingTool
                         }
                     }
 
-                    // 加载JSON参数
                     if (historyData.ContainsKey("ParametersJson"))
                     {
                         txtParametersJson.Text = historyData["ParametersJson"];
@@ -1281,21 +1157,18 @@ namespace Nine.Design.PollingTool
             }
         }
 
-        // 补全缺失：Panuon 控件专属值变更事件（txtMachineCount_ValueChanged）
         private void txtMachineCount_ValueChanged(object sender, Panuon.WPF.SelectedValueChangedRoutedEventArgs<double?> e)
         {
             try
             {
-                // 确保值有效后更新机器标签页
                 if (e.NewValue.HasValue && e.NewValue.Value > 0)
                 {
-                    UpdateMachineTabItems();
+                    UpdateMachineFilterButtons();
                     AddLogEntry($"[系统] 机器数量已更新为：{(int)e.NewValue.Value}", 0);
                 }
                 else if (e.NewValue.HasValue && e.NewValue.Value <= 0)
                 {
                     AddLogEntry("[系统] 机器数量不能小于等于0，已忽略无效值", 0, true);
-                    // 重置为默认值1
                     Dispatcher.Invoke(() =>
                     {
                         txtMachineCount.Value = 1;
@@ -1469,11 +1342,7 @@ namespace Nine.Design.PollingTool
                     finalContent.AppendLine($"请求方法: {_selectedHttpMethod.Method}");
                     finalContent.AppendLine($"请求频率: {_maxRequestsPerSecond}次/秒");
                     finalContent.AppendLine($"端口上限: {_maxPortUsage}");
-                    double exportSuccessRate = 0;
-                    if (_totalRequestsSent > 0)
-                    {
-                        exportSuccessRate = (double)_totalSuccessfulRequests / _totalRequestsSent * 100;
-                    }
+                    double exportSuccessRate = _totalRequestsSent > 0 ? (double)_totalSuccessfulRequests / _totalRequestsSent * 100 : 0;
                     finalContent.AppendLine($"总请求数: {_totalRequestsSent} | 成功: {_totalSuccessfulRequests} | 成功率: {exportSuccessRate:F2}%");
                     finalContent.AppendLine("======================================================");
                     finalContent.AppendLine();
@@ -1524,22 +1393,26 @@ namespace Nine.Design.PollingTool
             }
         }
 
+        /// <summary>
+        /// 重构：添加带机器标记的日志条目
+        /// </summary>
         private void AddLogEntry(string message, int machineId = 0, bool isError = false)
         {
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-            string prefix = (machineId == 0)
-                ? message
-                : $"[机器 {machineId,2}] {message}";
-
+            string prefix = machineId == 0 ? message : $"[机器 {machineId,2}] {message}";
             string fullMessage = $"[{timestamp}] {prefix}";
 
-            _ = WriteLogToFile(fullMessage, isError);
-            _totalLogCache.Enqueue(fullMessage);
-
-            if (machineId > 0 && _machineLogCaches.ContainsKey(machineId))
+            // 入队带标记的日志条目
+            _globalLogQueue.Enqueue(new LogEntry
             {
-                _machineLogCaches[machineId].Enqueue(fullMessage);
-            }
+                Message = fullMessage,
+                MachineId = machineId,
+                IsError = isError,
+                Timestamp = DateTime.Now
+            });
+
+            // 异步写入文件
+            _ = WriteLogToFile(fullMessage, isError);
         }
 
         private async Task WriteLogToFile(string message, bool isError = false)
@@ -1596,73 +1469,18 @@ namespace Nine.Design.PollingTool
             }
         }
 
-        // 修复：FindVisualChild 明确返回 ListBox（泛型签名改为具体类型，或调用时指定 ListBox）
-        private ListBox FindVisualChild<ListBox>(DependencyObject parent, string childName) where ListBox : DependencyObject
-        {
-            if (parent == null) return null;
-
-            ListBox foundChild = null;
-            int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < childrenCount; i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                ListBox childType = child as ListBox;
-                if (childType == null)
-                {
-                    foundChild = FindVisualChild<ListBox>(child, childName);
-                    if (foundChild != null) break;
-                }
-                else if (!string.IsNullOrEmpty(childName))
-                {
-                    var frameworkElement = child as FrameworkElement;
-                    if (frameworkElement != null && frameworkElement.Name == childName)
-                    {
-                        foundChild = (ListBox)child;
-                        break;
-                    }
-                    else
-                    {
-                        foundChild = FindVisualChild<ListBox>(child, childName);
-                        if (foundChild != null) break;
-                    }
-                }
-                else
-                {
-                    foundChild = (ListBox)child;
-                    break;
-                }
-            }
-            return foundChild;
-        }
-
         private void LoadHistory()
         {
             try
             {
-                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PollingHistory.config");
+                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "history.json");
                 if (File.Exists(historyPath))
                 {
                     string content = ReadFileContentWithRetry(historyPath);
-                    var historyData = JsonConvert.DeserializeObject<Dictionary<string, string>>(content);
+                    var historyData = JsonConvert.DeserializeObject<HistoryData>(content);
                     if (historyData != null)
                     {
-                        Dispatcher.Invoke(() =>
-                        {
-                            if (historyData.ContainsKey("Endpoint"))
-                                txtEndpoint.Text = historyData["Endpoint"];
-                            int machineCount = 1;
-                            if (historyData.ContainsKey("MachineCount") && int.TryParse(historyData["MachineCount"], out machineCount))
-                                txtMachineCount.Value = machineCount;
-                            int reqPerSec = 200;
-                            if (historyData.ContainsKey("MaxRequestsPerSecond") && int.TryParse(historyData["MaxRequestsPerSecond"], out reqPerSec))
-                                txtPollInterval.Value = reqPerSec;
-                            if (historyData.ContainsKey("HttpMethod") && historyData["HttpMethod"] == "Get")
-                                rbGet.IsChecked = true;
-                            else
-                                rbPost.IsChecked = true;
-                            if (historyData.ContainsKey("ParametersJson"))
-                                txtParametersJson.Text = historyData["ParametersJson"];
-                        });
+                        lbHistory.ItemsSource = historyData.Items;
                         AddLogEntry("[系统] 历史配置加载成功", 0);
                     }
                 }
@@ -1736,9 +1554,23 @@ namespace Nine.Design.PollingTool
                 btnStartPolling.IsEnabled = !string.IsNullOrWhiteSpace(txtEndpoint.Text);
             });
         }
+
+        private void LbHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (lbHistory.SelectedItem is HistoryItem selectedItem)
+                {
+                    txtEndpoint.Text = selectedItem.Endpoint;
+                    txtMachineCount.Value = Convert.ToDouble(selectedItem.MachineCount);
+                    txtPollInterval.Value = Convert.ToDouble(selectedItem.PollInterval);
+                    txtParametersJson.Text = selectedItem.ParametersJson;
+                }
+            });
+        }
         #endregion
 
-        #region INotifyPropertyChanged 实现（保持原有不变）
+        #region INotifyPropertyChanged 实现（保持不变）
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
@@ -1778,9 +1610,34 @@ namespace Nine.Design.PollingTool
         }
         #endregion
 
-        private void LbHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
+        #region 已移除的字段（兼容旧代码，标记为过时）
+        [Obsolete("重构后已移除，使用_globalLogQueue替代")]
+        private Dictionary<int, ConcurrentQueue<string>> _machineLogCaches = new Dictionary<int, ConcurrentQueue<string>>();
+        #endregion
     }
+
+    /// <summary>
+    /// 日志条目模型（新增：带机器标记）
+    /// </summary>
+    public class LogEntry
+    {
+        public string Message { get; set; }
+        public int MachineId { get; set; }
+        public bool IsError { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    //// 补充缺失的模型类（避免编译报错）
+    //public class MachineDataModel { }
+    //public class HistoryData
+    //{
+    //    public List<HistoryItem> Items { get; set; } = new List<HistoryItem>();
+    //}
+    //public class HistoryItem
+    //{
+    //    public string Endpoint { get; set; }
+    //    public int MachineCount { get; set; }
+    //    public int PollInterval { get; set; }
+    //    public string ParametersJson { get; set; }
+    //}
 }

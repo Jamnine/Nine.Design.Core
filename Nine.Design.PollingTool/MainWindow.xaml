@@ -119,19 +119,26 @@
                 </Style.Triggers>
             </Style>
 
-            <!--  TabItem 样式（适配Panuon，美化页面标签）  -->
-            <Style x:Key="MachineTabItemStyle" TargetType="TabItem">
-                <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}" />
-                <Setter Property="Padding" Value="15,8" />
-                <Setter Property="pu:TabItemHelper.CornerRadius" Value="4,4,0,0" />
-                <Setter Property="pu:TabItemHelper.SelectedBackground" Value="{StaticResource PrimaryColor}" />
-                <Setter Property="pu:TabItemHelper.SelectedForeground" Value="White" />
-                <Setter Property="pu:TabItemHelper.HoverBackground" Value="#F0E6D2" />
+            <!--  机器过滤按钮样式（新增）  -->
+            <Style
+                x:Key="MachineFilterButtonStyle"
+                BasedOn="{StaticResource ButtonStyle}"
+                TargetType="Button">
+                <Setter Property="Padding" Value="10,4" />
+                <Setter Property="Margin" Value="0,0,5,0" />
+                <Setter Property="MinWidth" Value="80" />
+                <Setter Property="MaxWidth" Value="120" />
+                <!--<Style.Triggers>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter Property="Background" Value="{StaticResource PrimaryColor}" />
+                        <Setter Property="Foreground" Value="White" />
+                    </Trigger>
+                </Style.Triggers>-->
             </Style>
         </ResourceDictionary>
     </Window.Resources>
 
-    <!--  保留原有布局结构，移除左侧机器列表，添加TabControl多页面容器  -->
+    <!--  保留原有布局结构，移除TabControl，新增机器过滤按钮和全局日志ListBox  -->
     <Grid Background="#FAFAFA">
         <Grid.RowDefinitions>
             <RowDefinition Height="50" />
@@ -157,7 +164,7 @@
                     Margin="0,2,0,0"
                     FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=8}"
                     Foreground="#E0E0E0"
-                    Text="高性能多机器轮询 | 实时统计监控 | 多页面切换查看" />
+                    Text="高性能多机器轮询 | 实时统计监控 | 单面板日志过滤" />
             </StackPanel>
         </Grid>
 
@@ -171,8 +178,12 @@
                 <!--  参数配置行  -->
                 <RowDefinition Height="Auto" />
                 <!--  功能按钮行  -->
+                <RowDefinition Height="Auto" />
+                <!--  机器过滤按钮行（新增）  -->
+                <RowDefinition Height="Auto" />
+                <!--  统计面板行（新增）  -->
                 <RowDefinition Height="*" />
-                <!--  TabControl多页面容器行  -->
+                <!--  全局日志ListBox行  -->
             </Grid.RowDefinitions>
 
             <!--  第一行：参数配置区域 - 自适应宽度（保留不变）  -->
@@ -264,7 +275,7 @@
                                         Maximum="100"
                                         Minimum="1"
                                         ValueChanged="txtMachineCount_ValueChanged"
-                                        Watermark="机器数量（对应页面数量）" />
+                                        Watermark="机器数量" />
                                 </StackPanel>
 
                                 <!--  请求方法  -->
@@ -562,224 +573,144 @@
                     Style="{StaticResource ButtonStyle}" />
             </StackPanel>
 
-            <!--  第三行：多页面容器（TabControl）- 核心新增，替换原有左侧列表+右侧统计日志  -->
-            <TabControl
-                x:Name="tcMachineOverview"
+            <!--  第三行：机器过滤按钮容器（新增 - 横向滚动）  -->
+            <ScrollViewer
                 Grid.Row="2"
+                Margin="20,0,20,10"
+                HorizontalScrollBarVisibility="Auto"
+                VerticalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="spMachineFilterButtons" Orientation="Horizontal">
+                    <!--  默认添加「全部日志」按钮，其他机器按钮动态生成  -->
+                    <Button
+                        x:Name="btnAllLogs"
+                        Background="{StaticResource PrimaryColor}"
+                        Click="BtnAllLogs_Click"
+                        Content="全部日志"
+                        Style="{StaticResource MachineFilterButtonStyle}" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <!--  第四行：实时统计面板（新增 - 全局唯一）  -->
+            <Border
+                Grid.Row="3"
+                Margin="20,0,20,10"
+                Padding="10"
+                Background="White"
+                BorderBrush="{StaticResource SecondaryColor}"
+                BorderThickness="1"
+                CornerRadius="6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <!--  总请求数  -->
+                    <StackPanel
+                        Grid.Column="0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                            Foreground="{StaticResource TextSecondaryColor}"
+                            Text="总请求数" />
+                        <TextBlock
+                            x:Name="txtTotalRequests"
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
+                            FontWeight="Bold"
+                            Foreground="{StaticResource PrimaryColor}"
+                            Text="0" />
+                    </StackPanel>
+                    <!--  成功请求数  -->
+                    <StackPanel
+                        Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                            Foreground="{StaticResource TextSecondaryColor}"
+                            Text="成功请求数" />
+                        <TextBlock
+                            x:Name="txtSuccessRequests"
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
+                            FontWeight="Bold"
+                            Foreground="{StaticResource SuccessColor}"
+                            Text="0" />
+                    </StackPanel>
+                    <!--  成功率  -->
+                    <StackPanel
+                        Grid.Column="2"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                            Foreground="{StaticResource TextSecondaryColor}"
+                            Text="成功率" />
+                        <TextBlock
+                            x:Name="txtSuccessRate"
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
+                            FontWeight="Bold"
+                            Foreground="{StaticResource SecondaryColor}"
+                            Text="0.00%" />
+                    </StackPanel>
+                    <!--  端口占用数  -->
+                    <StackPanel
+                        Grid.Column="3"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                            Foreground="{StaticResource TextSecondaryColor}"
+                            Text="端口占用数" />
+                        <TextBlock
+                            x:Name="txtPortUsage"
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
+                            FontWeight="Bold"
+                            Foreground="{StaticResource WarningColor}"
+                            Text="0/50000" />
+                    </StackPanel>
+                    <!--  运行时长  -->
+                    <StackPanel
+                        Grid.Column="4"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                            Foreground="{StaticResource TextSecondaryColor}"
+                            Text="运行时长" />
+                        <TextBlock
+                            x:Name="txtRunTime"
+                            HorizontalAlignment="Center"
+                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
+                            FontWeight="Bold"
+                            Foreground="{StaticResource PrimaryColor}"
+                            Text="00:00:00" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!--  第五行：全局日志ListBox（新增 - 唯一日志展示面板）  -->
+            <ListBox
+                x:Name="lbGlobalLogs"
+                Grid.Row="4"
                 Margin="20,0,20,20"
-                ItemContainerStyle="{StaticResource MachineTabItemStyle}"
-                Style="{StaticResource {x:Type TabControl}}">
-                <!--  每个 TabItem 包含 统计面板 + 日志列表，与原有右侧结构一致  -->
-                <TabControl.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding TabTitle}" />
-                    </DataTemplate>
-                </TabControl.ItemTemplate>
-                <TabControl.ContentTemplate>
-                    <DataTemplate>
-                        <Grid Margin="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="auto" MinHeight="80" />
-                                <!--  统计面板  -->
-                                <RowDefinition Height="*" />
-                                <!--  日志列表  -->
-                            </Grid.RowDefinitions>
-
-                            <!--  实时统计面板  -->
-                            <Border
-                                Grid.Row="0"
-                                Padding="10"
-                                Background="White"
-                                BorderBrush="{StaticResource SecondaryColor}"
-                                BorderThickness="1"
-                                CornerRadius="6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <!--  总请求数  -->
-                                    <StackPanel
-                                        Grid.Column="0"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center">
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                                            Foreground="{StaticResource TextSecondaryColor}"
-                                            Text="总请求数" />
-                                        <TextBlock
-                                            x:Name="txtTabTotalRequests"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
-                                            FontWeight="Bold"
-                                            Foreground="{StaticResource PrimaryColor}"
-                                            Text="{Binding MachineData.TotalRequests}" />
-                                    </StackPanel>
-
-                                    <!--  成功请求数  -->
-                                    <StackPanel
-                                        Grid.Column="1"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center">
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                                            Foreground="{StaticResource TextSecondaryColor}"
-                                            Text="成功请求数" />
-                                        <TextBlock
-                                            x:Name="txtTabSuccessRequests"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
-                                            FontWeight="Bold"
-                                            Foreground="{StaticResource SuccessColor}"
-                                            Text="{Binding MachineData.SuccessRequests}" />
-                                    </StackPanel>
-
-                                    <!--  成功率  -->
-                                    <StackPanel
-                                        Grid.Column="2"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center">
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                                            Foreground="{StaticResource TextSecondaryColor}"
-                                            Text="成功率" />
-                                        <TextBlock
-                                            x:Name="txtTabSuccessRate"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
-                                            FontWeight="Bold"
-                                            Foreground="{StaticResource SecondaryColor}">
-                                            <TextBlock.Text>
-                                                <MultiBinding Converter="{local:SuccessRateConverter}">
-                                                    <Binding Path="MachineData.TotalRequests" />
-                                                    <Binding Path="MachineData.SuccessRequests" />
-                                                </MultiBinding>
-                                            </TextBlock.Text>
-                                        </TextBlock>
-                                    </StackPanel>
-
-                                    <!--  端口占用数（仅总览页面显示，单机器页面隐藏）  -->
-                                    <StackPanel
-                                        Grid.Column="3"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Visibility="{Binding MachineId, Converter={local:TabVisibilityConverter}}">
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                                            Foreground="{StaticResource TextSecondaryColor}"
-                                            Text="端口占用数" />
-                                        <TextBlock
-                                            x:Name="txtTabPortUsage"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
-                                            FontWeight="Bold"
-                                            Foreground="{StaticResource WarningColor}"
-                                            Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=CurrentPortCount, StringFormat=\{0\}/50000}" />
-                                    </StackPanel>
-
-                                    <!--  运行时长（仅总览页面显示，单机器页面隐藏）  -->
-                                    <StackPanel
-                                        Grid.Column="4"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Visibility="{Binding MachineId, Converter={local:TabVisibilityConverter}}">
-                                        <TextBlock
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                                            Foreground="{StaticResource TextSecondaryColor}"
-                                            Text="运行时长" />
-                                        <TextBlock
-                                            x:Name="txtTabRunTime"
-                                            HorizontalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=20}"
-                                            FontWeight="Bold"
-                                            Foreground="{StaticResource PrimaryColor}"
-                                            Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=RunTime, StringFormat=\{0:hh\\:mm\\:ss\}}" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-
-                            <!--  日志区域  -->
-                            <Grid Grid.Row="1" Margin="0,10,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="40" />
-                                    <!--  日志标题  -->
-                                    <RowDefinition Height="*" />
-                                    <!--  日志列表  -->
-                                </Grid.RowDefinitions>
-
-                                <!--  日志标题  -->
-                                <Border
-                                    Grid.Row="0"
-                                    Padding="10"
-                                    Background="{StaticResource PrimaryColor}"
-                                    CornerRadius="6,6,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                                            FontWeight="SemiBold"
-                                            Foreground="White"
-                                            Text="{Binding TabTitle, StringFormat=\{0\} 日志}" />
-                                        <TextBlock
-                                            Margin="10,0,0,0"
-                                            VerticalAlignment="Center"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
-                                            Foreground="#E0E0E0"
-                                            Text="（实时输出请求详情）" />
-                                    </StackPanel>
-                                </Border>
-
-                                <!--  日志列表（每个页面独立日志）  -->
-                                <ListBox
-                                    x:Name="lbTabLogs"
-                                    Grid.Row="1"
-                                    Padding="10"
-                                    pu:ListBoxHelper.CornerRadius="0,0,6,6"
-                                    Background="White"
-                                    BorderBrush="{StaticResource SecondaryColor}"
-                                    BorderThickness="1,0,1,1"
-                                    FontFamily="Consolas"
-                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}"
-                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                    <ListBox.Resources>
-                                        <Style TargetType="ListBoxItem">
-                                            <Setter Property="Padding" Value="2" />
-                                            <Setter Property="Margin" Value="0,1" />
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ListBoxItem">
-                                                        <Border
-                                                            Padding="5"
-                                                            Background="{TemplateBinding Background}"
-                                                            CornerRadius="3">
-                                                            <ContentPresenter />
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsSelected" Value="True">
-                                                                <Setter Property="Background" Value="#E3F2FD" />
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ListBox.Resources>
-                                </ListBox>
-                            </Grid>
-                        </Grid>
-                    </DataTemplate>
-                </TabControl.ContentTemplate>
-            </TabControl>
+                pu:ListBoxHelper.CornerRadius="4"
+                pu:ScrollBarHelper.HoverThumbBackground="#E0E0E0"
+                pu:ScrollBarHelper.ThumbBackground="#ffb7c5"
+                Background="White"
+                BorderBrush="#DDDDDD"
+                BorderThickness="1" />
         </Grid>
     </Grid>
 </pu:WindowX>
