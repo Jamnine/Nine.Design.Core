@@ -14,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -99,7 +100,7 @@ namespace Nine.Design.PollingTool
                 btnStartPolling.IsEnabled = !string.IsNullOrWhiteSpace(txtEndpoint.Text);
                 _cts = new CancellationTokenSource();
                 UpdateMachineList();
-                txtMachineCount.TextChanged += TxtMachineCount_TextChanged;
+                txtMachineCount.ValueChanged += txtMachineCount_ValueChanged;
 
                 // 加载历史记录
                 LoadHistory();
@@ -410,119 +411,123 @@ namespace Nine.Design.PollingTool
         // 切换请求方法
         private void HttpMethodChecked(object sender, RoutedEventArgs e)
         {
-            if (sender is RadioButton radioButton)
+            try
             {
-                _selectedHttpMethod = radioButton == rbGet ? HttpMethod.Get : HttpMethod.Post;
-                AddLogEntry($"[系统] 请求方法已切换为: {_selectedHttpMethod.Method}", 0);
+                if (sender is RadioButton radioButton && radioButton.IsChecked.HasValue && radioButton.IsChecked.Value)
+                {
+                    _selectedHttpMethod = radioButton == rbGet ? HttpMethod.Get : HttpMethod.Post;
+                    AddLogEntry($"[系统] 请求方法已切换为: {_selectedHttpMethod.Method}", 0);
+
+                    // 额外：强制刷新 UI 选中状态（避免 Panuon 控件视觉卡顿）
+                    Dispatcher.Invoke(() =>
+                    {
+                        rbGet.IsChecked = radioButton == rbGet;
+                        rbPost.IsChecked = radioButton == rbPost;
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry($"[系统] 切换请求方法失败：{ex.Message}", 0, true);
             }
         }
 
         // 更新机器列表
+        // 更新机器列表（修复 Clear 报错，增加全量容错）
         private void UpdateMachineList()
         {
-            // 确保在 UI 线程执行（Dispatcher.Invoke 同步执行，适配 WPF 控件操作，避免跨线程修改集合）
+            // 确保在 UI 线程执行（使用 Dispatcher.Invoke 同步执行，避免跨线程）
             Dispatcher.Invoke(() =>
             {
                 try
                 {
-                    // 前置校验1：确保 _machines 集合已初始化（避免空引用异常，核心容错）
+                    // 前置校验1：确保 _machines 集合已初始化（避免空引用）
                     if (_machines == null)
                     {
-                        AddLogEntry("[系统] 错误：机器列表集合未初始化，无法更新列表", 0, true);
+                        AddLogEntry("[系统] 机器列表集合未初始化，已重新创建", 0);
+                    }
+
+                    // 前置校验2：确保 txtMachineCount 控件已加载且值有效
+                    if (txtMachineCount == null || !txtMachineCount.Value.HasValue || txtMachineCount.Value <= 0)
+                    {
+                        AddLogEntry("[系统] 机器数量输入框无效或值非正整数，无法更新列表", 0);
                         return;
                     }
 
-                    // 前置校验2：确保 txtMachineCount 控件已加载（避免控件空引用）
-                    if (txtMachineCount == null)
+                    int machineCount = (int)txtMachineCount.Value.Value;
+
+                    // 优化：当前数量与输入数量一致，直接返回，避免无效操作
+                    if (_machines.Count == machineCount)
                     {
-                        AddLogEntry("[系统] 错误：机器数量输入框未找到，无法更新列表", 0, true);
                         return;
                     }
 
-                    // 步骤1：获取并校验机器数量输入值
-                    string machineCountText = txtMachineCount.Text.Trim(); // 去除前后空格，提升容错性
-                    int machineCount;
-                    bool isMachineCountValid = int.TryParse(machineCountText, out machineCount) && machineCount > 0;
-
-                    if (isMachineCountValid)
+                    // 关键修复1：先解除 ItemsControl 与 _machines 的绑定，避免 Clear 时 UI 同步报错
+                    if (icMachines != null)
                     {
-                        // 优化：当前数量与输入数量一致，直接返回，避免无效的清空/重建操作
-                        if (_machines.Count == machineCount)
-                        {
-                            return;
-                        }
+                        icMachines.ItemsSource = null;
+                    }
 
-                        // 步骤2：清空现有机器列表（安全操作 ObservableCollection，UI 线程内无异常）
+                    // 步骤2：安全清空现有机器列表（加锁，避免并发修改）
+                    lock (_machines)
+                    {
                         _machines.Clear();
+                    }
 
-                        // 步骤3：重置所有统计数据（全局统计 + 机器维度统计，避免历史数据干扰）
-                        ResetAllStats();
+                    // 步骤3：重置所有统计数据
+                    ResetAllStats();
 
-                        // 步骤4：循环创建机器实例，初始化相关配置
-                        for (int i = 1; i <= machineCount; i++)
+                    // 步骤4：循环创建机器实例（确保 MachineUserControl 可正常实例化）
+                    for (int i = 1; i <= machineCount; i++)
+                    {
+                        try
                         {
-                            // 实例化机器用户控件，设置核心属性
                             MachineUserControl machineCtrl = new MachineUserControl
                             {
                                 MachineId = i,
-                                IsPolling = false // 初始化为非轮询状态，保持状态一致性
+                                IsPolling = false
                             };
-                            _machines.Add(machineCtrl);
 
-                            // 步骤5：初始化机器最后请求时间（不存在则添加，避免键不存在异常）
+                            lock (_machines)
+                            {
+                                _machines.Add(machineCtrl);
+                            }
+
+                            // 初始化机器最后请求时间
                             if (!_machineLastRequestTime.ContainsKey(i))
                             {
-                                _machineLastRequestTime.Add(i, DateTime.MinValue); // 替代索引赋值，更安全
+                                _machineLastRequestTime.Add(i, DateTime.MinValue);
                             }
                             else
                             {
-                                // 重置已有机器的最后请求时间，保持数据干净
                                 _machineLastRequestTime[i] = DateTime.MinValue;
                             }
 
-                            // 步骤6：初始化机器维度的统计计数器（线程安全，TryAdd 避免重复添加报错）
+                            // 初始化机器维度统计计数器
                             _machineTotalRequests.TryAdd(i, 0);
                             _machineSuccessRequests.TryAdd(i, 0);
-
-                            // 额外：若计数器已存在，重置为 0（避免历史统计残留）
-                            if (_machineTotalRequests.ContainsKey(i))
-                            {
-                                _machineTotalRequests[i] = 0;
-                            }
-                            if (_machineSuccessRequests.ContainsKey(i))
-                            {
-                                _machineSuccessRequests[i] = 0;
-                            }
                         }
-
-                        // 步骤7：更新 ItemsControl 数据源（优化写法，避免重复赋值 null，减少 UI 无效刷新）
-                        if (icMachines != null) // 校验 icMachines 控件是否存在
+                        catch (Exception ex)
                         {
-                            if (icMachines.ItemsSource != _machines)
-                            {
-                                icMachines.ItemsSource = _machines;
-                            }
+                            AddLogEntry($"[系统] 创建机器 {i} 失败：{ex.Message}", 0, true);
                         }
-                        else
-                        {
-                            AddLogEntry("[系统] 警告：机器列表控件 icMachines 未找到，列表无法渲染", 0, true);
-                        }
+                    }
 
-                        // 步骤8：记录正常更新日志，反馈当前列表数量
-                        AddLogEntry($"[系统] 机器列表更新成功，当前机器数量: {_machines.Count}", 0);
+                    // 关键修复2：重新绑定 ItemsControl 数据源，同步 UI
+                    if (icMachines != null)
+                    {
+                        icMachines.ItemsSource = _machines;
                     }
                     else
                     {
-                        // 无效机器数量：记录提示日志，引导用户输入正确格式
-                        string errorMsg = string.IsNullOrEmpty(machineCountText)
-                            ? "机器数量不能为空，请输入正整数"
-                            : $"无效的机器数量「{machineCountText}」，请输入大于 0 的整数";
-                        AddLogEntry($"[系统] {errorMsg}", 0);
+                        AddLogEntry("[系统] 警告：机器列表控件 icMachines 未找到，列表无法渲染", 0, true);
                     }
+
+                    // 步骤5：记录正常更新日志
+                    AddLogEntry($"[系统] 机器列表更新成功，当前机器数量: {_machines.Count}", 0);
                 }
                 catch (Exception ex)
                 {
-                    // 捕获所有未预期异常，避免程序崩溃，同时记录详细错误信息便于排查
                     AddLogEntry($"[系统] 更新机器列表失败：{ex.Message}，异常堆栈：{ex.StackTrace}", 0, true);
                 }
             });
@@ -810,7 +815,7 @@ namespace Nine.Design.PollingTool
             await Dispatcher.InvokeAsync(async () =>
             {
                 // 更新频率限制
-                if (int.TryParse(txtPollInterval.Text, out int userMaxRequests) && userMaxRequests > 0)
+                if (int.TryParse(txtPollInterval.Value.ToString(), out int userMaxRequests) && userMaxRequests > 0)
                 {
                     _maxRequestsPerSecond = userMaxRequests;
                     AddLogEntry($"[系统] 请求频率更新为：{_maxRequestsPerSecond}次/秒", 0);
@@ -839,7 +844,7 @@ namespace Nine.Design.PollingTool
 
                     // 仅做验证，不定义外部变量，避免作用域冲突
                     int tempMachineCount;
-                    if (!int.TryParse(txtMachineCount.Text, out tempMachineCount) || tempMachineCount <= 0)
+                    if (!int.TryParse(txtMachineCount.Value.ToString(), out tempMachineCount) || tempMachineCount <= 0)
                     {
                         AddLogEntry("[系统] 机器数量无效", 0);
                         MessageBox.Show("机器数量必须是大于0的整数", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -856,7 +861,7 @@ namespace Nine.Design.PollingTool
                 int machineCount = await Dispatcher.InvokeAsync(() =>
                 {
                     int tempCount;
-                    int.TryParse(txtMachineCount.Text, out tempCount);
+                    int.TryParse(txtMachineCount.Value.ToString(), out tempCount);
                     return tempCount;
                 });
 
@@ -1204,7 +1209,7 @@ namespace Nine.Design.PollingTool
                     Dispatcher.Invoke(() =>
                     {
                         finalContent.AppendLine($"Endpoint: {txtEndpoint.Text}");
-                        finalContent.AppendLine($"机器数量: {txtMachineCount.Text}");
+                        finalContent.AppendLine($"机器数量: {txtMachineCount.Value}");
                     });
 
                     finalContent.AppendLine($"请求方法: {_selectedHttpMethod.Method}");
@@ -1377,7 +1382,7 @@ namespace Nine.Design.PollingTool
         }
 
         // 可在 txtMachineCount 的 TextChanged 事件中补充
-        private void TxtMachineCount_TextChanged(object sender, TextChangedEventArgs e)
+        private void txtMachineCount_ValueChanged(object sender, Panuon.WPF.SelectedValueChangedRoutedEventArgs<double?> e)
         {
             if (_isPolling)
             {
@@ -1395,7 +1400,7 @@ namespace Nine.Design.PollingTool
                 else
                 {
                     // 恢复原有数量，避免输入错误
-                    txtMachineCount.Text = _machines.Count.ToString();
+                    txtMachineCount.Value = _machines.Count;
                 }
             }
             else
@@ -1422,8 +1427,8 @@ namespace Nine.Design.PollingTool
                 if (lastItem != null)
                 {
                     txtEndpoint.Text = lastItem.Endpoint;
-                    txtMachineCount.Text = lastItem.MachineCount;
-                    txtPollInterval.Text = lastItem.PollInterval;
+                    txtMachineCount.Value = Convert.ToDouble(lastItem.MachineCount);
+                    txtPollInterval.Value = Convert.ToDouble(lastItem.PollInterval);
                     txtParametersJson.Text = lastItem.ParametersJson;
                 }
             });
@@ -1434,7 +1439,7 @@ namespace Nine.Design.PollingTool
             Dispatcher.Invoke(() =>
             {
                 var historyData = LoadHistoryData();
-                UpdateHistory(txtEndpoint.Text, txtMachineCount.Text, txtPollInterval.Text, txtParametersJson.Text, historyData.Items, 10);
+                UpdateHistory(txtEndpoint.Text, txtMachineCount.Value.ToString(), txtPollInterval.Value.ToString(), txtParametersJson.Text, historyData.Items, 10);
                 try
                 {
                     File.WriteAllText(HISTORY_FILE_PATH, JsonConvert.SerializeObject(historyData, Formatting.Indented));
@@ -1491,43 +1496,116 @@ namespace Nine.Design.PollingTool
 
         private void LbHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            // 该事件本身就在 UI 线程，无需 Dispatcher.Invoke
+            if (lbHistory.SelectedItem is HistoryItem selectedItem)
             {
-                if (lbHistory.SelectedItem is HistoryItem selectedItem)
+                try
                 {
-                    txtEndpoint.Text = selectedItem.Endpoint;
-                    txtMachineCount.Text = selectedItem.MachineCount;
-                    txtPollInterval.Text = selectedItem.PollInterval;
-                    txtParametersJson.Text = selectedItem.ParametersJson;
+                    txtEndpoint.Text = selectedItem.Endpoint ?? string.Empty;
+
+                    // 容错转换：避免非数字字符串报错
+                    double machineCount = 1;
+                    if (!string.IsNullOrWhiteSpace(selectedItem.MachineCount) && double.TryParse(selectedItem.MachineCount, out var mc))
+                    {
+                        machineCount = mc;
+                    }
+                    txtMachineCount.Value = machineCount;
+
+                    double pollInterval = 1;
+                    if (!string.IsNullOrWhiteSpace(selectedItem.PollInterval) && double.TryParse(selectedItem.PollInterval, out var pi))
+                    {
+                        pollInterval = pi;
+                    }
+                    txtPollInterval.Value = pollInterval;
+
+                    txtParametersJson.Text = selectedItem.ParametersJson ?? string.Empty;
                 }
-            });
+                catch (Exception ex)
+                {
+                    AddLogEntry($"[系统] 加载选中历史记录失败：{ex.Message}", 0, true);
+                }
+            }
         }
+
 
         private void LoadFromHistory_Click(object sender, RoutedEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            if (lbHistory.SelectedItem is HistoryItem selectedItem)
             {
-                if (lbHistory.SelectedItem is HistoryItem selectedItem)
+                try
                 {
-                    txtEndpoint.Text = selectedItem.Endpoint;
-                    txtMachineCount.Text = selectedItem.MachineCount;
-                    txtPollInterval.Text = selectedItem.PollInterval;
-                    txtParametersJson.Text = selectedItem.ParametersJson;
+                    txtEndpoint.Text = selectedItem.Endpoint ?? string.Empty;
+
+                    double machineCount = 1;
+                    if (!string.IsNullOrWhiteSpace(selectedItem.MachineCount) && double.TryParse(selectedItem.MachineCount, out var mc))
+                    {
+                        machineCount = mc;
+                    }
+                    txtMachineCount.Value = machineCount;
+
+                    double pollInterval = 1;
+                    if (!string.IsNullOrWhiteSpace(selectedItem.PollInterval) && double.TryParse(selectedItem.PollInterval, out var pi))
+                    {
+                        pollInterval = pi;
+                    }
+                    txtPollInterval.Value = pollInterval;
+
+                    txtParametersJson.Text = selectedItem.ParametersJson ?? string.Empty;
                 }
-            });
+                catch (Exception ex)
+                {
+                    AddLogEntry($"[系统] 手动加载历史记录失败：{ex.Message}", 0, true);
+                }
+            }
         }
 
         private void ToggleDetails_Click(object sender, RoutedEventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            try
             {
                 var button = sender as Button;
-                if (button != null && button.DataContext is MachineItem machineItem)
+                if (button == null) return;
+
+                // 关键修复：DataContext 是 MachineUserControl（与 _machines 集合类型一致）
+                var machineCtrl = button.DataContext as MachineUserControl;
+                if (machineCtrl == null) return;
+
+                // 查找详情 TextBlock（通过 VisualTreeHelper，避免 FindName 失效）
+                var detailsTextBlock = FindVisualChild<TextBlock>(button, "detailsTextBlock");
+                if (detailsTextBlock != null)
                 {
-                    var detailsTextBlock = button.FindName("detailsTextBlock") as TextBlock;
-                    detailsTextBlock.Visibility = detailsTextBlock.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+                    detailsTextBlock.Visibility = detailsTextBlock.Visibility == Visibility.Visible
+                        ? Visibility.Collapsed
+                        : Visibility.Visible;
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry($"[系统] 切换机器详情失败：{ex.Message}", 0, true);
+            }
+        }
+        // 辅助方法：查找视觉树中的子控件（解决 FindName 失效问题）
+        private T FindVisualChild<T>(DependencyObject parent, string childName) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            T foundChild = null;
+            int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T childType && (child as FrameworkElement)?.Name == childName)
+                {
+                    foundChild = childType;
+                    break;
+                }
+                else
+                {
+                    foundChild = FindVisualChild<T>(child, childName);
+                    if (foundChild != null) break;
+                }
+            }
+            return foundChild;
         }
         #endregion
 
@@ -1543,5 +1621,7 @@ namespace Nine.Design.PollingTool
                 _statsUpdateTimer?.Stop();
             });
         }
+
+        
     }
 }

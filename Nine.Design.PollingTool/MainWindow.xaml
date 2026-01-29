@@ -61,7 +61,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!--  原有主题色（保留不变）  -->
-            <SolidColorBrush x:Key="PrimaryColor" Color="#2C3E50" />
+            <SolidColorBrush x:Key="PrimaryColor" Color="BurlyWood" />
             <SolidColorBrush x:Key="SecondaryColor" Color="#3498DB" />
             <SolidColorBrush x:Key="SuccessColor" Color="#2ECC71" />
             <SolidColorBrush x:Key="WarningColor" Color="#F39C12" />
@@ -74,7 +74,7 @@
             <Style x:Key="LabelStyle" TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{StaticResource TextSecondaryColor}" />
                 <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}" />
-                <Setter Property="Margin" Value="0,0,5,0" />
+                <Setter Property="Margin" Value="0,0,5,3" />
             </Style>
 
             <Style x:Key="InputStyle" TargetType="TextBox">
@@ -172,10 +172,16 @@
 
     <!--  保留原有布局结构，移除MahApps依赖，适配Panuon  -->
     <Grid Background="#FAFAFA">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
         <!--  顶部标题栏 - 相对高度（替换MahApps标题栏为原生Grid）  -->
         <Grid
+            Grid.Row="0"
             Height="50"
-            VerticalAlignment="Top"
+            VerticalAlignment="Center"
             Background="{StaticResource PrimaryColor}">
             <StackPanel
                 Margin="20,0,0,0"
@@ -195,7 +201,10 @@
         </Grid>
 
         <!--  主内容区域（避开标题栏）  -->
-        <Grid Margin="0,45,0,0">
+        <Grid
+            Grid.Row="1"
+            Grid.ColumnSpan="2"
+            Margin="9">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <!--  参数配置行  -->
@@ -206,187 +215,364 @@
             </Grid.RowDefinitions>
 
             <!--  第一行：参数配置区域 - 自适应宽度  -->
-            <Grid
-                Grid.Row="0"
-                Margin="20,20,20,10"
-                Background="White">
+            <Grid Grid.Column="0" Margin="0,0,0,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*" MinWidth="300" />
-                    <!--  基础参数 - 比例宽度  -->
-                    <ColumnDefinition Width="1*" MinWidth="300" />
-                    <!--  请求参数 - 比例宽度  -->
-                    <ColumnDefinition Width="1.5*" MinWidth="350" />
-                    <!--  历史记录 - 比例宽度  -->
+                    <ColumnDefinition Width="7*" />
+                    <ColumnDefinition Width="5" />
+                    <ColumnDefinition Width="3*" />
                 </Grid.ColumnDefinitions>
+                <GroupBox
+                    Grid.Column="0"
+                    pu:GroupBoxHelper.CornerRadius="9"
+                    pu:GroupBoxHelper.HeaderBackground="#FFD0DDEE"
+                    pu:GroupBoxHelper.HeaderBorderBrush="#00FFFFFF"
+                    pu:GroupBoxHelper.HeaderCornerRadius="8,8,0,0"
+                    pu:GroupBoxHelper.HeaderFontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                    pu:GroupBoxHelper.HeaderHeight="35"
+                    pu:GroupBoxHelper.HeaderHorizontalContentAlignment="Left"
+                    pu:GroupBoxHelper.HeaderPadding="7,0,0,0"
+                    BorderBrush="#FFD0DDEE"
+                    Header="基础参数">
+                    <Grid Grid.Row="0" Background="White">
+                        <!--  左侧：基础参数  -->
+                        <StackPanel>
+                            <!--  频率/机器数/请求方法 - 自适应布局  -->
+                            <Grid MinWidth="280">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="7*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="2*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="2*" MinHeight="50" />
+                                    <RowDefinition Height="8*" MinHeight="120" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <!--  轮询地址 - 自适应高度（替换MahApps Watermark为Panuon）  -->
+                                    <TextBlock
+                                        Margin="0,0,0,3"
+                                        Style="{StaticResource LabelStyle}"
+                                        Text="轮询地址：" />
+                                    <TextBox
+                                        x:Name="txtEndpoint"
+                                        Height="30"
+                                        pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                        pu:ShadowHelper.BlurRadius="15"
+                                        pu:ShadowHelper.Opacity="0.5"
+                                        pu:ShadowHelper.ShadowDepth="5"
+                                        pu:TextBoxHelper.CornerRadius="4"
+                                        pu:TextBoxHelper.FocusedBorderBrush="#36AAF7"
+                                        pu:TextBoxHelper.FocusedForeground="#36AAF7"
+                                        pu:TextBoxHelper.FocusedShadowColor="#36AAF7"
+                                        pu:TextBoxHelper.Icon="&#xe9e9;"
+                                        pu:TextBoxHelper.Watermark="输入接口地址"
+                                        AcceptsReturn="True"
+                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                        TextWrapping="Wrap"
+                                        VerticalScrollBarVisibility="Auto" />
+                                </StackPanel>
+                                <!--  频率  -->
+                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                    <TextBlock Style="{StaticResource LabelStyle}" Text="请求频率：间隔（秒）" />
+                                    <pu:NumberInput
+                                        x:Name="txtPollInterval"
+                                        Height="30"
+                                        HorizontalAlignment="Stretch"
+                                        CornerRadius="5"
+                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                        Interval="1"
+                                        Maximum="100"
+                                        Minimum="1"
+                                        Watermark="间隔（秒）" />
+                                </StackPanel>
 
-                <!--  左侧：基础参数  -->
-                <StackPanel Grid.Column="0">
-                    <TextBlock
-                        Margin="0,0,0,10"
-                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                        FontWeight="SemiBold"
-                        Foreground="{StaticResource PrimaryColor}"
-                        Text="基础配置" />
+                                <!--  机器数  -->
+                                <StackPanel Grid.Row="0" Grid.Column="4">
+                                    <TextBlock Style="{StaticResource LabelStyle}" Text="线程数量：" />
+                                    <pu:NumberInput
+                                        x:Name="txtMachineCount"
+                                        Height="30"
+                                        HorizontalAlignment="Stretch"
+                                        CornerRadius="5"
+                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                        Interval="1"
+                                        Maximum="100"
+                                        Minimum="1"
+                                        ValueChanged="txtMachineCount_ValueChanged"
+                                        Watermark="线程数量" />
+                                </StackPanel>
 
-                    <!--  轮询地址 - 自适应高度（替换MahApps Watermark为Panuon）  -->
-                    <TextBlock
-                        Margin="0,0,0,3"
-                        Style="{StaticResource LabelStyle}"
-                        Text="轮询地址：" />
-                    <TextBox
-                        x:Name="txtEndpoint"
-                        Height="60"
-                        MinWidth="280"
-                        pu:TextBoxHelper.Watermark="输入轮询地址（每行一个）"
-                        AcceptsReturn="True"
-                        Style="{StaticResource InputStyle}"
-                        TextWrapping="Wrap"
-                        VerticalScrollBarVisibility="Auto" />
-
-                    <!--  频率/机器数/请求方法 - 自适应布局  -->
-                    <Grid MinWidth="280" Margin="0,10,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1*" />
-                            <ColumnDefinition Width="1*" />
-                            <ColumnDefinition Width="1*" />
-                        </Grid.ColumnDefinitions>
-
-                        <!--  频率  -->
-                        <StackPanel Grid.Column="0">
-                            <TextBlock
-                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}"
-                                Style="{StaticResource LabelStyle}"
-                                Text="请求频率：" />
-                            <TextBox
-                                x:Name="txtPollInterval"
-                                Height="35"
-                                MinWidth="70"
-                                MaxWidth="90"
-                                HorizontalAlignment="Left"
-                                pu:TextBoxHelper.Watermark="200"
-                                Style="{StaticResource InputStyle}"
-                                Text="200" />
-                        </StackPanel>
-
-                        <!--  机器数  -->
-                        <StackPanel Grid.Column="1">
-                            <TextBlock
-                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}"
-                                Style="{StaticResource LabelStyle}"
-                                Text="机器数量：" />
-                            <TextBox
-                                x:Name="txtMachineCount"
-                                Height="35"
-                                MinWidth="70"
-                                MaxWidth="90"
-                                HorizontalAlignment="Left"
-                                pu:TextBoxHelper.Watermark="5"
-                                Style="{StaticResource InputStyle}"
-                                Text="5" />
-                        </StackPanel>
-
-                        <!--  请求方法  -->
-                        <StackPanel Grid.Column="2">
-                            <TextBlock
-                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}"
-                                Style="{StaticResource LabelStyle}"
-                                Text="请求方法：" />
-                            <StackPanel Orientation="Horizontal">
-                                <RadioButton
-                                    x:Name="rbGet"
-                                    Margin="0,5,20,0"
-                                    pu:RadioButtonHelper.BoxRadius="4"
-                                    Content="GET"
-                                    Foreground="{StaticResource TextPrimaryColor}"
-                                    GroupName="HttpMethod"
-                                    IsChecked="True" />
-                                <RadioButton
-                                    x:Name="rbPost"
-                                    Margin="0,5,0,0"
-                                    pu:RadioButtonHelper.BoxRadius="4"
-                                    Content="POST"
-                                    Foreground="{StaticResource TextPrimaryColor}"
-                                    GroupName="HttpMethod" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-
-                <!--  中间：请求参数  -->
-                <StackPanel Grid.Column="1" Margin="20,0,0,0">
-                    <TextBlock
-                        Margin="0,0,0,10"
-                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                        FontWeight="SemiBold"
-                        Foreground="{StaticResource PrimaryColor}"
-                        Text="请求参数" />
-                    <TextBlock
-                        Margin="0,0,0,3"
-                        Style="{StaticResource LabelStyle}"
-                        Text="JSON 参数：" />
-                    <TextBox
-                        x:Name="txtParametersJson"
+                                <!--  请求方法  -->
+                                <StackPanel Grid.Row="0" Grid.Column="6">
+                                    <TextBlock Style="{StaticResource LabelStyle}" Text="请求方法：" />
+                                    <StackPanel
+                                        Height="30"
+                                        HorizontalAlignment="Stretch"
+                                        Orientation="Horizontal">
+                                        <!--  均匀分布按钮  -->
+                                        <RadioButton
+                                            x:Name="rbGet"
+                                            VerticalAlignment="Center"
+                                            HorizontalContentAlignment="Center"
+                                            pu:RadioButtonHelper.BoxRadius="10"
+                                            pu:RadioButtonHelper.CheckedBorderBrush="#d1d6d8"
+                                            pu:RadioButtonHelper.CheckedBorderThickness="8"
+                                            Background="#FFFFFFFF"
+                                            BorderBrush="#FFABB7CB"
+                                            BorderThickness="2"
+                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                            GroupName="HttpMethod">
+                                            GET
+                                            <pu:RadioButtonHelper.CheckedToggleBrush>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Offset="0.0" Color="#FFFD790D" />
+                                                    <GradientStop Offset="1.0" Color="#FFFFFFFF" />
+                                                </LinearGradientBrush>
+                                            </pu:RadioButtonHelper.CheckedToggleBrush>
+                                            <pu:RadioButtonHelper.ToggleBrush>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Offset="0.0" Color="#FFE1E1E1" />
+                                                    <GradientStop Offset="1.0" Color="#FFFFFFFF" />
+                                                </LinearGradientBrush>
+                                            </pu:RadioButtonHelper.ToggleBrush>
+                                        </RadioButton>
+                                        <RadioButton
+                                            x:Name="rbPost"
+                                            VerticalAlignment="Center"
+                                            HorizontalContentAlignment="Center"
+                                            pu:RadioButtonHelper.BoxRadius="10"
+                                            pu:RadioButtonHelper.CheckedBorderBrush="#d1d6d8"
+                                            pu:RadioButtonHelper.CheckedBorderThickness="8"
+                                            Background="#FFFFFFFF"
+                                            BorderBrush="#FFABB7CB"
+                                            BorderThickness="2"
+                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                            GroupName="HttpMethod">
+                                            POST
+                                            <pu:RadioButtonHelper.CheckedToggleBrush>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Offset="0.0" Color="#FFFD790D" />
+                                                    <GradientStop Offset="1.0" Color="#FFFFFFFF" />
+                                                </LinearGradientBrush>
+                                            </pu:RadioButtonHelper.CheckedToggleBrush>
+                                            <pu:RadioButtonHelper.ToggleBrush>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Offset="0.0" Color="#FFE1E1E1" />
+                                                    <GradientStop Offset="1.0" Color="#FFFFFFFF" />
+                                                </LinearGradientBrush>
+                                            </pu:RadioButtonHelper.ToggleBrush>
+                                        </RadioButton>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Row="1"
+                                    Grid.ColumnSpan="7"
+                                    Margin="0,5,0,0">
+                                    <TextBlock Style="{StaticResource LabelStyle}" Text="JSON 参数：" />
+                                    <TextBox
+                                        x:Name="txtParametersJson"
+                                        MinHeight="120"
+                                        pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                        pu:ShadowHelper.BlurRadius="15"
+                                        pu:ShadowHelper.Opacity="0.5"
+                                        pu:ShadowHelper.ShadowDepth="5"
+                                        pu:TextBoxHelper.CornerRadius="4"
+                                        pu:TextBoxHelper.FocusedBorderBrush="#36AAF7"
+                                        pu:TextBoxHelper.FocusedForeground="#36AAF7"
+                                        pu:TextBoxHelper.FocusedShadowColor="#36AAF7"
+                                        pu:TextBoxHelper.Icon="&#xe9e9;"
+                                        pu:TextBoxHelper.Watermark="请求参数（JSON格式，POST请求专用）"
+                                        AcceptsReturn="True"
+                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                        TextWrapping="Wrap"
+                                        VerticalScrollBarVisibility="Auto" />
+                                    <!--<TextBox
                         Height="120"
                         MinWidth="280"
                         pu:TextBoxHelper.Watermark="请求参数（JSON格式，POST请求专用）"
                         AcceptsReturn="True"
                         Style="{StaticResource InputStyle}"
                         TextWrapping="Wrap"
-                        VerticalScrollBarVisibility="Auto" />
-                </StackPanel>
-
-                <!--  右侧：历史记录  -->
-                <StackPanel Grid.Column="2" Margin="20,0,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock
-                            Margin="0,0,20,0"
-                            VerticalAlignment="Center"
-                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
-                            FontWeight="SemiBold"
-                            Foreground="{StaticResource PrimaryColor}"
-                            Text="历史记录" />
-                        <Button
-                            Click="LoadFromHistory_Click"
-                            Content="刷新"
-                            Style="{StaticResource ButtonStyle}" />
-                    </StackPanel>
-
-                    <Grid Height="140" MinWidth="300">
-                        <ListBox
-                            x:Name="lbHistory"
-                            Grid.Column="0"
-                            pu:ListBoxHelper.CornerRadius="4"
-                            SelectionChanged="LbHistory_SelectionChanged">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="2" Background="#F8F9FA">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="80" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock
-                                            Grid.Column="0"
-                                            FontSize="11"
-                                            FontWeight="Bold"
-                                            Foreground="{StaticResource SecondaryColor}"
-                                            Text="{Binding SavedTime, StringFormat=\{0:MM-dd HH:mm\}}" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
-                                            Foreground="{StaticResource TextPrimaryColor}"
-                                            Text="{Binding Endpoint}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <VirtualizingStackPanel />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                        </ListBox>
+                        VerticalScrollBarVisibility="Auto" />-->
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
                     </Grid>
-                </StackPanel>
+                </GroupBox>
+
+                <GroupBox
+                    Grid.Column="2"
+                    pu:GroupBoxHelper.CornerRadius="9"
+                    pu:GroupBoxHelper.HeaderBackground="#FFD0DDEE"
+                    pu:GroupBoxHelper.HeaderBorderBrush="#00FFFFFF"
+                    pu:GroupBoxHelper.HeaderCornerRadius="8,8,0,0"
+                    pu:GroupBoxHelper.HeaderFontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                    pu:GroupBoxHelper.HeaderHeight="35"
+                    pu:GroupBoxHelper.HeaderHorizontalContentAlignment="Left"
+                    pu:GroupBoxHelper.HeaderPadding="7,0,0,0"
+                    BorderBrush="#FFD0DDEE"
+                    Header="历史记录">
+                    <Grid Grid.Row="0" Background="White">
+                        <!--  外层Grid：仅包含按钮和ListBox，取消多余嵌套  -->
+                        <Grid Margin="0">
+                            <!--  刷新按钮：固定右上角，Margin控制与边缘距离  -->
+                            <Button
+                                Width="40"
+                                Height="40"
+                                Margin="0,2,20,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Panel.ZIndex="111"
+                                pu:ButtonHelper.CornerRadius="40,40,40,40"
+                                pu:ButtonHelper.ShadowColor="#6CCF70"
+                                pu:ShadowHelper.BlurRadius="15"
+                                pu:ShadowHelper.ShadowDepth="3"
+                                Background="#6CCF70"
+                                Click="LoadFromHistory_Click"
+                                Content="&#xe970;"
+                                FontFamily="{StaticResource PanuonIconFont}"
+                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=13}"
+                                Foreground="#FFFFFF" />
+
+                            <!--  ListBox：核心占满设置，取消外层Height限制，让其随父容器拉伸  -->
+                            <ListBox
+                                x:Name="lbHistory"
+                                MaxHeight="190"
+                                Margin="0"
+                                Padding="0"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch"
+                                pu:ListBoxHelper.CornerRadius="4"
+                                pu:ScrollBarHelper.HoverThumbBackground="#E0E0E0"
+                                pu:ScrollBarHelper.ThumbBackground="#ffb7c5"
+                                pu:ScrollViewerHelper.ContentSpacing="5"
+                                pu:ScrollViewerHelper.ScrollBarPosition="Outside"
+                                pu:ScrollViewerHelper.ScrollBarThickness="5"
+                                Background="Transparent"
+                                BorderBrush="#DDDDDD"
+                                BorderThickness="0"
+                                SelectionChanged="LbHistory_SelectionChanged">
+
+                                <!--  列表项模板：保持原有  -->
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Height="28">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock
+                                                Grid.Column="0"
+                                                Margin="10,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="11"
+                                                FontWeight="Bold"
+                                                Foreground="{StaticResource SecondaryColor}"
+                                                Text="{Binding SavedTime, StringFormat=\{0:MM-dd HH:mm\}}" />
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Margin="5,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                                Foreground="{StaticResource TextPrimaryColor}"
+                                                Text="{Binding Endpoint}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+
+                                <!--  虚拟化面板：保持原有  -->
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <VirtualizingStackPanel Margin="0" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+
+                                <!--  核心修复：ItemContainerStyle + 重写 ControlTemplate（强制生效）  -->
+                                <ListBox.ItemContainerStyle>
+                                    <!--  1. BasedOn 继承 Panuon 的默认 ListBoxItem 样式，确保 Helper 生效  -->
+                                    <Style BasedOn="{StaticResource {x:Type ListBoxItem}}" TargetType="ListBoxItem">
+                                        <!--  基础布局：取消边距  -->
+                                        <Setter Property="Margin" Value="0" />
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+
+                                        <!--  2. 强制设置 Panuon Helper 属性（优先级最高）  -->
+                                        <Setter Property="pu:ListBoxHelper.ItemsBackground" Value="Transparent" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsHoverBackground" Value="#F8E5E5" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsHoverBorderBrush" Value="#6CCF70" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsHoverBorderThickness" Value="0" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsHoverCornerRadius" Value="4" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsSelectedBackground" Value="#F8E5E5" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsSelectedBorderBrush" Value="Transparent" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsSelectedBorderThickness" Value="0" />
+                                        <Setter Property="pu:ListBoxHelper.ItemsSelectedCornerRadius" Value="4" />
+
+                                        <!--  3. 重写 ControlTemplate（彻底摆脱默认样式干扰，核心！）  -->
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Grid
+                                                        x:Name="RootGrid"
+                                                        Background="{TemplateBinding Background}"
+                                                        SnapsToDevicePixels="True">
+                                                        <!--  绑定 Panuon Helper 的背景/边框/圆角  -->
+                                                        <Border
+                                                            x:Name="ItemBorder"
+                                                            Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(pu:ListBoxHelper.ItemsBackground)}"
+                                                            BorderBrush="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(pu:ListBoxHelper.ItemsBorderBrush)}"
+                                                            BorderThickness="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(pu:ListBoxHelper.ItemsBorderThickness)}"
+                                                            CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(pu:ListBoxHelper.ItemsCornerRadius)}"
+                                                            SnapsToDevicePixels="True">
+                                                            <!--  内容容器：显示 ItemTemplate  -->
+                                                            <ContentPresenter
+                                                                Margin="{TemplateBinding Padding}"
+                                                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                                Focusable="False"
+                                                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                                        </Border>
+                                                    </Grid>
+
+                                                    <!--  4. 触发器：手动实现 Hover/Selected 状态（不依赖 Panuon 自动触发）  -->
+                                                    <ControlTemplate.Triggers>
+                                                        <!--  悬浮状态  -->
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="ItemBorder" Property="Background" Value="#ffb7c5" />
+                                                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#6CCF70" />
+                                                            <Setter TargetName="ItemBorder" Property="BorderThickness" Value="0" />
+                                                            <Setter TargetName="ItemBorder" Property="CornerRadius" Value="4" />
+                                                        </Trigger>
+
+                                                        <!--  选中状态  -->
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="ItemBorder" Property="Background" Value="#F8E5E5" />
+                                                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="Transparent" />
+                                                            <Setter TargetName="ItemBorder" Property="BorderThickness" Value="0" />
+                                                            <Setter TargetName="ItemBorder" Property="CornerRadius" Value="4" />
+                                                        </Trigger>
+
+                                                        <!--  禁用状态（可选）  -->
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="ItemBorder" Property="Opacity" Value="0.5" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                        </Grid>
+                    </Grid>
+                </GroupBox>
             </Grid>
 
             <!--  第二行：功能按钮区域  -->
