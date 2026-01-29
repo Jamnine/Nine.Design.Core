@@ -269,7 +269,7 @@
                     <i:Interaction.Triggers>
                         <i:EventTrigger EventName="SelectedItemChanged">
                             <cmd:EventToCommand
-                                Command="{Binding TreeViewItemSelectedCommand}"
+                                Command="{Binding MenuTreeViewItemSelectedCommand}"
                                 CommandParameter="{Binding SelectedItem, ElementName=MenuTreeView}"
                                 PassEventArgsToCommand="False" />
                         </i:EventTrigger>
@@ -307,6 +307,8 @@
                     x:Name="MenuListBox"
                     Grid.Row="2"
                     Margin="10,15,10,0"
+                    pu:ListBoxHelper.ItemsHoverBackground="#ffb7c5"
+                    pu:ListBoxHelper.ItemsSelectedBackground="#F8E5E5"
                     pu:ScrollBarHelper.HoverThumbBackground="#E0E0E0"
                     pu:ScrollBarHelper.ThumbBackground="#ffb7c5"
                     pu:ScrollViewerHelper.ContentSpacing="5"
@@ -316,6 +318,14 @@
                     SelectedIndex="{Binding SelectedMainMenuIndex}"
                     Style="{DynamicResource MainMenuListBoxStyle}"
                     Visibility="{Binding MenuListShow}">
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="SelectionChanged">
+                            <cmd:EventToCommand
+                                Command="{Binding MenuListBoxSelectedCommand}"
+                                CommandParameter="{Binding SelectedItem, ElementName=MenuListBox}"
+                                PassEventArgsToCommand="False" />
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">

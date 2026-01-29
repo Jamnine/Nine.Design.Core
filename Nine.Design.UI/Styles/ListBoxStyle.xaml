@@ -32,7 +32,7 @@
         <Setter Property="pu:ListBoxHelper.ItemsSelectedBackground" Value="{DynamicResource ItemHoverBrush}" />
         <Setter Property="pu:ListBoxHelper.ItemsPadding" Value="10,0" />
         <Setter Property="pu:ListBoxHelper.ItemsHeight" Value="33" />
-        <Setter Property="pu:ListBoxHelper.ItemsCornerRadius" Value="5" />
+        <Setter Property="pu:ListBoxHelper.ItemsCornerRadius" Value="9" />
         <Setter Property="ItemContainerStyle" Value="{StaticResource MainMenuListBoxItemStyle}" />
     </Style>
 

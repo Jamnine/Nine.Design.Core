@@ -44,6 +44,7 @@
 		<Reference Include="System.Xaml" />
 	</ItemGroup>
 	<ItemGroup>
+	  <None Remove="Images\更多功能.png" />
 	  <None Remove="Resources\Fonts\NDCIcon.ttf" />
 	  <None Remove="Resources\Fonts\PanuonIcon.ttf" />
 	  <None Remove="Resources\Images\background_1.png" />
@@ -63,6 +64,7 @@
 		<PackageReference Include="Panuon.WPF.UI" Version="1.3.0.2" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Resource Include="Images\更多功能.png" />
 	  <Resource Include="Resources\Images\background_1.png" />
 	  <Resource Include="Resources\Images\background_2.png" />
 	  <Resource Include="Resources\Images\background_3.png" />
