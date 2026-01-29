@@ -58,16 +58,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="BoolToColorConverter.cs" />
     <Compile Include="History.cs" />
-    <Compile Include="MachineUserControl.xaml.cs">
-      <DependentUpon>MachineUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="StatusToColorConverter .cs" />
-    <Page Include="MachineUserControl.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
+    <Compile Include="SuccessRateConverter.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
