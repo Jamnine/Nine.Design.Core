@@ -1,0 +1,133 @@
+﻿<UserControl
+    x:Class="Nine.Design.PollingTool.MachineUserControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:Nine.Design.PollingTool"
+    Width="auto"
+    Height="auto">
+    <UserControl.Resources>
+        <!--  复用主窗口的主题色（若主窗口资源在App.xaml中，可直接引用）  -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#2C3E50" />
+        <SolidColorBrush x:Key="SecondaryColor" Color="#3498DB" />
+        <SolidColorBrush x:Key="SuccessColor" Color="#2ECC71" />
+        <SolidColorBrush x:Key="NeutralColor" Color="#ECF0F1" />
+        <SolidColorBrush x:Key="TextPrimaryColor" Color="#2C3E50" />
+
+        <!--  机器项样式 - 与主窗口统一  -->
+        <Style x:Key="MachineLabelStyle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="3,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryColor}" />
+        </Style>
+
+        <!--  轮询状态指示器样式（优化动画）  -->
+        <Style x:Key="PollingIndicatorStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="12" />
+            <Setter Property="Height" Value="12" />
+            <Setter Property="Fill" Value="{StaticResource SuccessColor}" />
+            <Setter Property="Margin" Value="5,0,0,0" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1" />
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsPolling}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard Name="pollingStoryboard">
+                            <Storyboard>
+                                <DoubleAnimation
+                                    AutoReverse="True"
+                                    RepeatBehavior="Forever"
+                                    Storyboard.TargetProperty="(Ellipse.RenderTransform).(ScaleTransform.ScaleX)"
+                                    From="1"
+                                    To="1.6"
+                                    Duration="0:0:0.6" />
+                                <DoubleAnimation
+                                    AutoReverse="True"
+                                    RepeatBehavior="Forever"
+                                    Storyboard.TargetProperty="(Ellipse.RenderTransform).(ScaleTransform.ScaleY)"
+                                    From="1"
+                                    To="1.6"
+                                    Duration="0:0:0.6" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <StopStoryboard BeginStoryboardName="pollingStoryboard" />
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsPolling}" Value="False">
+                    <Setter Property="Fill" Value="#95A5A6" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <!--  机器项容器 - 与主窗口圆角、阴影统一  -->
+    <Border
+        Margin="4"
+        Padding="8"
+        Background="{StaticResource NeutralColor}"
+        BorderBrush="{StaticResource SecondaryColor}"
+        BorderThickness="1"
+        CornerRadius="6">
+        <!--  主窗口中定义的CardShadow（若未定义，可去掉）  -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!--  机器ID + 轮询状态（优化布局）  -->
+            <StackPanel
+                Grid.Row="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Orientation="Horizontal">
+                <TextBlock FontWeight="SemiBold" Style="{StaticResource MachineLabelStyle}">
+                    <Run Text="机器ID: " />
+                    <Run Foreground="{StaticResource PrimaryColor}" Text="{Binding MachineId}" />
+                </TextBlock>
+                <TextBlock VerticalAlignment="Center" Style="{StaticResource MachineLabelStyle}">
+                    <Run Text="轮询状态:" />
+                </TextBlock>
+                <Ellipse VerticalAlignment="Center" Style="{StaticResource PollingIndicatorStyle}" />
+            </StackPanel>
+
+            <!--  结果列表（可选：若需要展示结果，保留并优化样式）  -->
+            <ScrollViewer
+                Grid.Row="1"
+                Margin="0,5,0,0"
+                VerticalScrollBarVisibility="Auto">
+                <Expander
+                    Margin="0"
+                    Background="Transparent"
+                    FontWeight="Medium"
+                    Foreground="{StaticResource PrimaryColor}"
+                    Header="轮询结果"
+                    IsExpanded="False">
+                    <ListBox
+                        Name="lbResults"
+                        Margin="5"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ItemsSource="{Binding Results}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock
+                                    Margin="2"
+                                    Padding="5"
+                                    Background="#F8F9FA"
+                                    FontSize="11"
+                                    Foreground="{StaticResource TextPrimaryColor}"
+                                    Text="{Binding}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Expander>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>

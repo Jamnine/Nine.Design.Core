@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Nine.Design.Core/Nine.Design.Core.csproj" />
   <Project Path="Nine.Design.Login/Nine.Design.Login.csproj" />
+  <Project Path="Nine.Design.PollingTool/Nine.Design.PollingTool.csproj" Id="1f57f582-49e9-4f58-a0ae-dea961f3cbaa" />
   <Project Path="Nine.Design.UI/Nine.Design.UI.csproj" />
 </Solution>

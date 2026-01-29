@@ -18,7 +18,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="Nine.Design.Clientbase" Version="1.0.0.6" />
+    <PackageReference Include="Nine.Design.Clientbase" Version="1.0.0.7" />
     <PackageReference Include="Nine.Design.Updater" Version="1.0.0.2" />
   </ItemGroup>
 
