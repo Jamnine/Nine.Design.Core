@@ -1,5 +1,7 @@
 ﻿using Newtonsoft.Json;
+using Nine.Design.PollingTool.Properties;
 using Panuon.WPF.UI;
+using Panuon.WPF.UI.Configurations;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -2045,12 +2047,14 @@ namespace Nine.Design.PollingTool
                 string recordInfo = string.IsNullOrEmpty(selectedItemToDelete.CustomName)
                     ? selectedItemToDelete.Endpoint
                     : $"{selectedItemToDelete.CustomName}（{selectedItemToDelete.Endpoint}）";
-                var confirmResult = MessageBox.Show($"确定要删除这条历史记录吗？\n{recordInfo}", "确认删除",
-                    MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                if (confirmResult != MessageBoxResult.Yes)
-                {
-                    return;
-                }
+                var setting = Application.Current.FindResource("CustomSetting") as MessageBoxXSetting;
+                MessageBoxX.Show(this, "你有一条新消息。", "提示", MessageBoxButton.OK, MessageBoxIcon.Info, DefaultButton.YesOK, setting, 5);
+                //var confirmResult = MessageBox.Show($"确定要删除这条历史记录吗？\n{recordInfo}", "确认删除",
+                //    MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                //if (confirmResult != MessageBoxResult.Yes)
+                //{
+                //    return;
+                //}
 
                 string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "history.json");
                 HistoryRoot historyRoot = new HistoryRoot();
@@ -2094,7 +2098,8 @@ namespace Nine.Design.PollingTool
                 });
 
                 AddLogEntry($"[系统] 已成功删除选中的历史记录（Id：{selectedItemToDelete.Id}）", 0, false, FixedLogType.System);
-                MessageBox.Show("历史记录删除成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                Nine.Design.Core.Helpers.ToastHelper.ShowToast("历史记录删除成功！");
+                //MessageBox.Show("历史记录删除成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -2108,7 +2113,9 @@ namespace Nine.Design.PollingTool
             if (lbHistory.SelectedItem == null || !(lbHistory.SelectedItem is HistoryItem selectedItemToEdit))
             {
                 AddLogEntry("[系统] 未选中任何要编辑的历史记录", 0, true, FixedLogType.System);
-                MessageBox.Show("请先在列表中选中一条要编辑的历史记录！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                //MessageBox.Show("请先在列表中选中一条要编辑的历史记录！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                Nine.Design.Core.Helpers.ToastHelper.ShowToast("请先在列表中选中一条要编辑的历史记录！");
+
                 return;
             }
 

@@ -61,6 +61,7 @@
     <Compile Include="HardwareMonitorHelper.cs" />
     <Compile Include="History.cs" />
     <Compile Include="SuccessRateConverter.cs" />
+    <Compile Include="ToastHelper.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
