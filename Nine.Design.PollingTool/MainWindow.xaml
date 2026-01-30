@@ -1145,6 +1145,16 @@
                                 Click="BtnSystemLogs_Click"
                                 Content="系统日志"
                                 Style="{StaticResource MachineFilterButtonStyle}" />
+                            <Button
+                                x:Name="btnPortLogs"
+                                Click="btnPortLogs_Click"
+                                Content="端口占用"
+                                Style="{StaticResource MachineFilterButtonStyle}" />
+                            <Button
+                                x:Name="btnErrorLogs"
+                                Click="BtnErrorLogs_Click"
+                                Content="异常日志"
+                                Style="{StaticResource MachineFilterButtonStyle}" />
                             <!--<Button
                                 x:Name="btnAllLogs"
                                 Height="20"

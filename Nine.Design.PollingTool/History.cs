@@ -28,7 +28,12 @@ namespace Nine.Design.PollingTool
         /// <summary>
         /// 业务机器日志（动态机器请求，后续过滤可排除）
         /// </summary>
-        BusinessMachine = 3
+        BusinessMachine = 3,
+
+        /// <summary>
+        /// 业务机器日志（动态机器请求，后续过滤可排除）
+        /// </summary>
+        PortMonitor = 4
     }
 
 
