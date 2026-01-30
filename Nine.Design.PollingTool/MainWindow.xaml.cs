@@ -1071,8 +1071,7 @@ namespace Nine.Design.PollingTool
             await Dispatcher.InvokeAsync(async () =>
             {
                 await StopPollingAsync();
-                OutputErrorStatsSummary();
-                ExportLogsToFile();
+                // 原有重复的 OutputErrorStatsSummary 和 ExportLogsToFile 已移除，由 StopPollingAsync 内置
             });
         }
 
@@ -1110,6 +1109,11 @@ namespace Nine.Design.PollingTool
             {
                 btnStartPolling.IsEnabled = !string.IsNullOrWhiteSpace(txtEndpoint.Text);
             });
+
+            // ========== 核心修改1：内置统计汇总和日志导出 ==========
+            AddLogEntry("[系统] 轮询已停止，开始生成统计汇总并导出日志", 0, false, FixedLogType.System);
+            OutputErrorStatsSummary(); // 生成明细统计
+            ExportLogsToFile(); // 导出包含统计的日志文件
 
             AddLogEntry("[系统] 轮询已停止", 0, false, FixedLogType.System);
             double successRate = 0;
@@ -1587,7 +1591,7 @@ namespace Nine.Design.PollingTool
         }
 
         /// <summary>
-        /// 核心修复：导出过滤后的日志，而非全量日志（修改：更新异常过滤描述）
+        /// 核心修复：导出过滤后的日志+完整统计明细，而非全量日志
         /// </summary>
         private void ExportLogsToFile()
         {
@@ -1603,7 +1607,7 @@ namespace Nine.Design.PollingTool
                     finalContent.AppendLine("==================== 轮询测试日志（过滤后） ====================");
                     finalContent.AppendLine($"导出时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
 
-                    // 新增：异常过滤描述
+                    // 异常过滤描述
                     string filterDesc = _isFilteringErrors
                         ? "【仅显示异常日志】"
                         : $"【日志类型：{_currentSelectedFixedLogType}】";
@@ -1624,6 +1628,61 @@ namespace Nine.Design.PollingTool
                     finalContent.AppendLine("======================================================");
                     finalContent.AppendLine();
 
+                    // ========== 核心修改2：添加明细统计到导出文件 ==========
+                    finalContent.AppendLine("==================== 统计汇总明细 ====================");
+                    TimeSpan totalTime = TimeSpan.Zero;
+                    if (_pollingStartTime != DateTime.MinValue)
+                    {
+                        totalTime = DateTime.Now - _pollingStartTime;
+                    }
+                    string timeFormat = $"{totalTime.Hours:D2}:{totalTime.Minutes:D2}:{totalTime.Seconds:D2}.{totalTime.Milliseconds:D3}";
+                    finalContent.AppendLine($"[全局] 总时长: {timeFormat} | 请求间隔: {_requestIntervalSeconds / 1000}秒/次 | 端口上限: {_maxPortUsage}");
+                    finalContent.AppendLine($"[全局] 总请求: {_totalRequestsSent} | 成功: {_totalSuccessfulRequests} | 成功率: {exportSuccessRate:F2}%");
+                    finalContent.AppendLine($"[全局] 最终端口占用: {_currentPortCount}/{_maxPortUsage}");
+
+                    // 各机器明细统计
+                    foreach (var kvp in _machineTotalRequests)
+                    {
+                        int machineId = kvp.Key;
+                        Dictionary<string, int> stats = new Dictionary<string, int>();
+                        if (_errorStats.TryGetValue(machineId, out Dictionary<string, int> storedStats))
+                        {
+                            stats = storedStats;
+                        }
+
+                        Tuple<double, double> extremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
+                        if (_responseTimeExtremes.TryGetValue(machineId, out Tuple<double, double> storedExtremes))
+                        {
+                            extremes = storedExtremes;
+                        }
+
+                        int machineTotal = kvp.Value;
+                        int machineSuccess = 0;
+                        if (_machineSuccessRequests.TryGetValue(machineId, out int storedMachineSuccess))
+                        {
+                            machineSuccess = storedMachineSuccess;
+                        }
+
+                        double successRate = machineTotal > 0 ? (double)machineSuccess / machineTotal * 100 : 0;
+
+                        string minTime = "无数据";
+                        string maxTime = "无数据";
+                        if (machineSuccess > 0)
+                        {
+                            minTime = $"{extremes.Item1:F2}ms";
+                            maxTime = $"{extremes.Item2:F2}ms";
+                        }
+
+                        int timeoutCount = stats.TryGetValue("超时", out int storedTimeoutCount) ? storedTimeoutCount : 0;
+                        int networkErrorCount = stats.TryGetValue("网络错误", out int storedNetworkErrorCount) ? storedNetworkErrorCount : 0;
+                        int httpErrorCount = stats.TryGetValue("HTTP错误", out int storedHttpErrorCount) ? storedHttpErrorCount : 0;
+
+                        string summary = $"机器 {machineId} | 总请求: {machineTotal} | 成功: {machineSuccess} ({successRate:F2}%) | 最短响应: {minTime} | 最长响应: {maxTime} | 超时: {timeoutCount} | 网络错误: {networkErrorCount} | HTTP错误: {httpErrorCount}";
+                        finalContent.AppendLine(summary);
+                    }
+                    finalContent.AppendLine("======================================================");
+                    finalContent.AppendLine();
+
                     // 写入过滤后的日志
                     foreach (var log in _filteredLogList)
                     {
@@ -1637,7 +1696,7 @@ namespace Nine.Design.PollingTool
                         sw.Flush();
                     }
 
-                    AddLogEntry($"[系统] 过滤后日志已导出: {finalFilePath}", 0, false, FixedLogType.System);
+                    AddLogEntry($"[系统] 过滤后日志（含完整统计）已导出: {finalFilePath}", 0, false, FixedLogType.System);
 
                     try
                     {
@@ -1651,7 +1710,7 @@ namespace Nine.Design.PollingTool
                     Dispatcher.Invoke(() =>
                     {
                         MessageBoxResult result = MessageBox.Show(
-                            $"日志已保存！\n路径：{finalFilePath}\n\n是否打开文件夹？",
+                            $"日志（含完整统计）已保存！\n路径：{finalFilePath}\n\n是否打开文件夹？",
                             "导出成功",
                             MessageBoxButton.YesNo,
                             MessageBoxImage.Information
@@ -1846,6 +1905,15 @@ namespace Nine.Design.PollingTool
         {
             try
             {
+                // 若轮询正在运行，先完整停止并保存统计
+                if (_isPolling)
+                {
+                    AddLogEntry("[系统] 检测到轮询仍在运行，正在优雅停止并保存统计...", 0, false, FixedLogType.System);
+                    // 同步执行停止逻辑（窗口关闭时不使用异步，避免窗口提前关闭）
+                    var stopTask = StopPollingAsync();
+                    stopTask.Wait(15000); // 等待最多15秒，确保统计和导出完成
+                }
+
                 _isPolling = false;
                 if (_cts != null)
                 {
@@ -1860,7 +1928,11 @@ namespace Nine.Design.PollingTool
 
                 if (_httpClient != null) _httpClient.Dispose();
 
-                ExportLogsToFile();
+                // 若未通过停止轮询导出，再执行一次导出（兜底）
+                if (_filteredLogList.Count > 0 && !string.IsNullOrEmpty(_logDirectory))
+                {
+                    ExportLogsToFile();
+                }
 
                 AddLogEntry("[系统] 程序正常退出", 0, false, FixedLogType.System);
             }
