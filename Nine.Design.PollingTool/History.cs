@@ -5,27 +5,68 @@ using System.ComponentModel;
 
 namespace Nine.Design.PollingTool
 {
-    // 历史记录项模型
+    public enum TestMode
+    {
+        HighFrequency,  // 高频压测模式（一秒几次）
+        StableMonitor   // 稳定监控模式（几秒一次）
+    }
+
+    /// <summary>
+    /// 日志条目模型（新增：带机器标记）
+    /// </summary>
+    public class LogEntry
+    {
+        public string Message { get; set; }
+        public int MachineId { get; set; }
+        public bool IsError { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+    
     public class HistoryItem
     {
-        public string Endpoint { get; set; }
-        public string MachineCount { get; set; }
-        public string PollInterval { get; set; }
-        public string ParametersJson { get; set; }
+        // 1. 新增：唯一标识（Guid），用于精准匹配删除/编辑，保存时自动生成
+        [JsonProperty("id")]
+        public Guid Id { get; set; } = Guid.NewGuid(); // 实例化时自动生成唯一Guid
+
+        // 2. 新增：用户自定义名称（可编辑）
+        [JsonProperty("customName")]
+        public string CustomName { get; set; } = string.Empty;
+
+        // 原有字段（保留不变）
+        [JsonProperty("endpoint")]
+        public string Endpoint { get; set; } = string.Empty;
+
+        [JsonProperty("machineCount")]
+        public string MachineCount { get; set; } = string.Empty;
+
+        [JsonProperty("pollInterval")]
+        public string PollInterval { get; set; } = string.Empty;
+
+        [JsonProperty("parametersJson")]
+        public string ParametersJson { get; set; } = string.Empty;
+
+        [JsonProperty("httpMethod")]
+        public string HttpMethod { get; set; } = string.Empty;
+
+        [JsonProperty("testMode")]
+        public string TestMode { get; set; } = string.Empty;
+
+        [JsonProperty("requestConfigValue")]
+        public string RequestConfigValue { get; set; } = string.Empty;
 
         [JsonProperty("saved_time")]
-        public DateTime SavedTime { get; set; }
+        public DateTime SavedTime { get; set; } = DateTime.Now;
     }
 
     // 历史记录集合模型
-    public class HistoryData
+    public class HistoryRoot
     {
         [JsonProperty("history")]
-        public List<HistoryItem> Items { get; set; }
+        public List<HistoryItem> HistoryList { get; set; }
 
-        public HistoryData()
+        public HistoryRoot()
         {
-            Items = new List<HistoryItem>();
+            HistoryList = new List<HistoryItem>();
         }
     }
 

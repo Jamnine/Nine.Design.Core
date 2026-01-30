@@ -269,7 +269,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="7*" />
                                     <ColumnDefinition Width="10" />
-                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="2.5*" />
                                     <ColumnDefinition Width="10" />
                                     <ColumnDefinition Width="1.5*" />
                                     <ColumnDefinition Width="10" />
@@ -285,27 +285,83 @@
                                         Margin="0,0,0,3"
                                         Style="{StaticResource LabelStyle}"
                                         Text="轮询地址：" />
-                                    <TextBox
-                                        x:Name="txtEndpoint"
-                                        Height="30"
-                                        pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
-                                        pu:ShadowHelper.BlurRadius="15"
-                                        pu:ShadowHelper.Opacity="0.5"
-                                        pu:ShadowHelper.ShadowDepth="5"
-                                        pu:TextBoxHelper.CornerRadius="4"
-                                        pu:TextBoxHelper.FocusedBorderBrush="#36AAF7"
-                                        pu:TextBoxHelper.FocusedForeground="#36AAF7"
-                                        pu:TextBoxHelper.FocusedShadowColor="#36AAF7"
-                                        pu:TextBoxHelper.Icon="&#xe9e9;"
-                                        pu:TextBoxHelper.Watermark="输入接口地址"
-                                        AcceptsReturn="True"
-                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
-                                        TextWrapping="Wrap"
-                                        VerticalScrollBarVisibility="Auto" />
+                                    <!--  替换横向StackPanel为Grid，实现TextBox自动占满剩余空间  -->
+                                    <Grid Height="30">
+                                        <!--  统一高度，和子控件保持一致  -->
+                                        <!--  定义2列：第1列自动适配ComboBox，第2列占满剩余空间  -->
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <!--  第1列：自动适配ComboBox宽度，不浪费空间  -->
+                                            <ColumnDefinition Width="*" />
+                                            <!--  第2列：* 表示占满所有剩余横向空间，分配给TextBox  -->
+                                        </Grid.ColumnDefinitions>
+
+                                        <!--  ComboBox：放在第0列，保持原有样式，去掉Height（继承Grid的30高度）  -->
+                                        <ComboBox
+                                            x:Name="cboHttpMethod"
+                                            Grid.Column="0"
+                                            Width="60"
+                                            Height="30"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            pu:ComboBoxHelper.ClearButtonVisibility="Collapsed"
+                                            pu:ComboBoxHelper.CornerRadius="4,0,0,4"
+                                            pu:ComboBoxHelper.ItemsHoverBackground="#2236AAF7"
+                                            pu:ComboBoxHelper.ItemsSelectedBackground="#36AAF7"
+                                            pu:ComboBoxHelper.ItemsSelectedForeground="#FFFFFF"
+                                            pu:ComboBoxHelper.OpenedBorderThickness="0"
+                                            pu:ComboBoxHelper.OpenedCornerRadius="4,4,0,0"
+                                            pu:ComboBoxHelper.OpenedForeground="#36AAF7"
+                                            pu:ComboBoxHelper.OpenedShadowColor="#36AAF7"
+                                            pu:ComboBoxHelper.WatermarkForeground="Gray"
+                                            pu:DropDownHelper.BorderThickness="0"
+                                            pu:DropDownHelper.CornerRadius="0,0,4,4"
+                                            pu:DropDownHelper.ShadowColor="#36AAF7"
+                                            pu:DropDownHelper.VerticalOffset="-1"
+                                            pu:ShadowHelper.BlurRadius="15"
+                                            pu:ShadowHelper.ShadowDepth="5"
+                                            Background="Bisque"
+                                            BorderThickness="1,1,0,1"
+                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=8}"
+                                            FontWeight="Bold"
+                                            SelectedIndex="0"
+                                            SelectionChanged="CboHttpMethod_SelectionChanged">
+                                            <pu:ComboBoxHelper.ToggleArrowTransformControlStyle>
+                                                <Style BasedOn="{StaticResource {x:Static pu:ComboBoxHelper.ToggleArrowTransformControlStyleKey}}" TargetType="pu:TransformControl">
+                                                    <!--<Setter Property="Visibility" Value="Collapsed" />-->
+                                                    <Setter Property="FontSize" Value="8" />
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                </Style>
+                                            </pu:ComboBoxHelper.ToggleArrowTransformControlStyle>
+                                            <ComboBoxItem Tag="GET">GET</ComboBoxItem>
+                                            <ComboBoxItem Tag="POST">POST</ComboBoxItem>
+                                        </ComboBox>
+
+                                        <!--  TextBox：放在第1列，去掉Height，添加Grid.Column，实现自动占满剩余空间  -->
+                                        <TextBox
+                                            x:Name="txtEndpoint"
+                                            Grid.Column="1"
+                                            pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                            pu:ShadowHelper.BlurRadius="15"
+                                            pu:ShadowHelper.Opacity="0.5"
+                                            pu:ShadowHelper.ShadowDepth="5"
+                                            pu:TextBoxHelper.CornerRadius="0,4,4,0"
+                                            pu:TextBoxHelper.FocusedBorderBrush="#36AAF7"
+                                            pu:TextBoxHelper.FocusedForeground="#36AAF7"
+                                            pu:TextBoxHelper.FocusedShadowColor="#36AAF7"
+                                            pu:TextBoxHelper.Icon="&#xe9e9;"
+                                            pu:TextBoxHelper.Watermark="输入接口地址"
+                                            AcceptsReturn="True"
+                                            BorderThickness="0,1,1,1"
+                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                            TextWrapping="Wrap"
+                                            VerticalScrollBarVisibility="Auto" />
+
+                                    </Grid>
                                 </StackPanel>
                                 <!--  频率  -->
                                 <StackPanel Grid.Row="0" Grid.Column="2">
-                                    <TextBlock Style="{StaticResource LabelStyle}" Text="请求频率：间隔（秒）" />
+                                    <!--<TextBlock Style="{StaticResource LabelStyle}" Text="请求频率：间隔（秒）" />
                                     <pu:NumberInput
                                         x:Name="txtPollInterval"
                                         Height="30"
@@ -315,7 +371,53 @@
                                         Interval="1"
                                         Maximum="100"
                                         Minimum="1"
-                                        Watermark="间隔（秒）" />
+                                        Watermark="间隔（秒）" />-->
+                                    <!--  新增：测试模式选择  -->
+                                    <TextBlock
+                                        x:Name="lblConfigDesc"
+                                        Style="{StaticResource LabelStyle}"
+                                        Text="请求频率：间隔（秒）" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <ComboBox
+                                            x:Name="cboTestMode"
+                                            Height="30"
+                                            VerticalAlignment="Center"
+                                            pu:ComboBoxHelper.ClearButtonVisibility="Collapsed"
+                                            pu:ComboBoxHelper.CornerRadius="4,0,0,4"
+                                            pu:ComboBoxHelper.ItemsHoverBackground="#2236AAF7"
+                                            pu:ComboBoxHelper.ItemsSelectedBackground="#36AAF7"
+                                            pu:ComboBoxHelper.ItemsSelectedForeground="#FFFFFF"
+                                            pu:ComboBoxHelper.OpenedBorderThickness="0"
+                                            pu:ComboBoxHelper.OpenedCornerRadius="4,4,0,0"
+                                            pu:ComboBoxHelper.OpenedForeground="#36AAF7"
+                                            pu:ComboBoxHelper.OpenedShadowColor="#36AAF7"
+                                            pu:ComboBoxHelper.Watermark="选择压测方式"
+                                            pu:ComboBoxHelper.WatermarkForeground="Gray"
+                                            pu:DropDownHelper.BorderThickness="0"
+                                            pu:DropDownHelper.CornerRadius="0,0,4,4"
+                                            pu:DropDownHelper.ShadowColor="#36AAF7"
+                                            pu:DropDownHelper.VerticalOffset="-1"
+                                            pu:ShadowHelper.BlurRadius="15"
+                                            pu:ShadowHelper.ShadowDepth="5"
+                                            BorderThickness="1,1,0,1"
+                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                            SelectedIndex="0">
+                                            <ComboBoxItem Tag="HighFrequency">高频压测（一秒几次）</ComboBoxItem>
+                                            <ComboBoxItem Tag="StableMonitor">稳定监控（几秒几次）</ComboBoxItem>
+                                        </ComboBox>
+
+                                        <pu:NumberInput
+                                            x:Name="txtPollInterval"
+                                            Height="30"
+                                            HorizontalAlignment="Stretch"
+                                            BorderThickness="0,1,1,1"
+                                            CornerRadius="0,4,4,0"
+                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                            Interval="1"
+                                            Maximum="100"
+                                            Minimum="1" />
+                                    </StackPanel>
+
                                 </StackPanel>
 
                                 <!--  机器数  -->
@@ -334,14 +436,59 @@
                                         Watermark="机器数量" />
                                 </StackPanel>
 
+                                <StackPanel
+                                    Grid.Row="0"
+                                    Grid.Column="6"
+                                    Margin="20,10,0,0"
+                                    Orientation="Horizontal">
+                                    <Button
+                                        x:Name="btnSave"
+                                        Width="30"
+                                        Height="30"
+                                        Margin="0,2,20,0"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Panel.ZIndex="111"
+                                        pu:ButtonHelper.CornerRadius="40,40,40,40"
+                                        pu:ButtonHelper.ShadowColor="#36AAF7"
+                                        pu:ShadowHelper.BlurRadius="15"
+                                        pu:ShadowHelper.ShadowDepth="3"
+                                        Background="#36AAF7"
+                                        Click="btnSave_Click"
+                                        Content="&#xe9e1;"
+                                        FontFamily="{StaticResource PanuonIconFont}"
+                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=13}"
+                                        Foreground="#FFFFFF" />
+                                    <Button
+                                        x:Name="btnClean"
+                                        Width="30"
+                                        Height="30"
+                                        Margin="0,2,20,0"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Panel.ZIndex="111"
+                                        pu:ButtonHelper.CornerRadius="40,40,40,40"
+                                        pu:ButtonHelper.ShadowColor="#E74C3C"
+                                        pu:ShadowHelper.BlurRadius="15"
+                                        pu:ShadowHelper.ShadowDepth="3"
+                                        Background="{StaticResource DangerColor}"
+                                        Click="btnClean_Click"
+                                        Content="&#xe92d;"
+                                        FontFamily="{StaticResource PanuonIconFont}"
+                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=13}"
+                                        Foreground="#FFFFFF" />
+                                </StackPanel>
                                 <!--  请求方法  -->
+                                <!--
                                 <StackPanel Grid.Row="0" Grid.Column="6">
                                     <TextBlock Style="{StaticResource LabelStyle}" Text="请求方法：" />
                                     <StackPanel
                                         Height="30"
                                         HorizontalAlignment="Stretch"
                                         Orientation="Horizontal">
-                                        <!--  均匀分布按钮  -->
+                                -->
+                                <!--  均匀分布按钮  -->
+                                <!--
                                         <RadioButton
                                             x:Name="rbGet"
                                             VerticalAlignment="Center"
@@ -395,7 +542,7 @@
                                             </pu:RadioButtonHelper.ToggleBrush>
                                         </RadioButton>
                                     </StackPanel>
-                                </StackPanel>
+                                </StackPanel>-->
                                 <StackPanel
                                     Grid.Row="1"
                                     Grid.ColumnSpan="7"
@@ -442,9 +589,9 @@
                             <!--  刷新按钮：固定右上角，Margin控制与边缘距离  -->
                             <Button
                                 x:Name="btnLoadFromHistory"
-                                Width="40"
-                                Height="40"
-                                Margin="0,2,20,0"
+                                Width="25"
+                                Height="25"
+                                Margin="0,2,10,0"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Top"
                                 Panel.ZIndex="111"
@@ -456,9 +603,261 @@
                                 Click="LoadFromHistory_Click"
                                 Content="&#xe970;"
                                 FontFamily="{StaticResource PanuonIconFont}"
-                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=13}"
+                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}"
                                 Foreground="#FFFFFF" />
+                            <Button
+                                x:Name="btnDeleteSelectedHistory"
+                                Width="25"
+                                Height="25"
+                                Margin="0,35,10,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Panel.ZIndex="111"
+                                pu:ButtonHelper.CornerRadius="40,40,40,40"
+                                pu:ButtonHelper.ShadowColor="#E74C3C"
+                                pu:ShadowHelper.BlurRadius="15"
+                                pu:ShadowHelper.ShadowDepth="3"
+                                Background="{StaticResource DangerColor}"
+                                Click="BtnDeleteSelectedHistory_Click"
+                                Content="&#xe92d;"
+                                FontFamily="{StaticResource PanuonIconFont}"
+                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}"
+                                Foreground="#FFFFFF">
+                                <Button.ToolTip>
+                                    <TextBlock Text="删除当前选中的历史记录" />
+                                </Button.ToolTip>
+                            </Button>
+                            <Button
+                                x:Name="btnEditSelectedHistory"
+                                Width="25"
+                                Height="25"
+                                Margin="0,70,10,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Panel.ZIndex="111"
+                                pu:ButtonHelper.CornerRadius="40,40,40,40"
+                                pu:ButtonHelper.ShadowColor="#6CCF70"
+                                pu:ShadowHelper.BlurRadius="15"
+                                pu:ShadowHelper.ShadowDepth="3"
+                                Background="#36AAF7"
+                                Click="BtnEditSelectedHistory_Click"
+                                Content="&#xe9b3;"
+                                FontFamily="{StaticResource PanuonIconFont}"
+                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=10}"
+                                Foreground="#FFFFFF">
+                                <Button.ToolTip>
+                                    <TextBlock Text="编辑当前选中的历史记录" />
+                                </Button.ToolTip>
+                            </Button>
+                            <!--  新增：Popup 编辑面板（默认隐藏，无新窗体，内嵌当前窗口）  -->
+                            <Popup
+                                x:Name="editHistoryPopup"
+                                Width="400"
+                                Height="500"
+                                AllowsTransparency="True"
+                                MouseLeftButtonDown="EditHistoryPopup_MouseLeftButtonDown"
+                                Placement="Center"
+                                PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                                PopupAnimation="Fade"
+                                StaysOpen="False">
+                                <!--  给 Border 添加原生 DropShadowEffect 阴影，去除 pu 相关阴影属性  -->
+                                <Border
+                                    Margin="20"
+                                    Padding="20"
+                                    Background="White"
+                                    BorderBrush="#E0E0E0"
+                                    BorderThickness="0"
+                                    CornerRadius="8"
+                                    MouseLeftButtonDown="EditHistoryPopup_MouseLeftButtonDown">
+                                    <!--  原生阴影效果：添加在 Border 的 Effect 属性中，可自定义所有参数  -->
+                                    <Border.Effect>
+                                        <DropShadowEffect
+                                            BlurRadius="20"
+                                            Direction="225"
+                                            Opacity="0.8"
+                                            ShadowDepth="8"
+                                            Color="#33000000" />
+                                    </Border.Effect>
+                                    <Grid>
+                                        <!--  原有布局不变，保留所有输入框/按钮  -->
+                                        <StackPanel>
+                                            <TextBlock
+                                                Margin="0,10,0,3"
+                                                Style="{StaticResource LabelStyle}"
+                                                Text="自定义名称：" />
+                                            <TextBox
+                                                x:Name="txtPopupCustomName"
+                                                Grid.Column="1"
+                                                Height="30"
+                                                pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                                pu:ShadowHelper.BlurRadius="15"
+                                                pu:ShadowHelper.Opacity="0.5"
+                                                pu:ShadowHelper.ShadowDepth="5"
+                                                pu:TextBoxHelper.CornerRadius="4"
+                                                pu:TextBoxHelper.FocusedBorderBrush="#36AAF7"
+                                                pu:TextBoxHelper.FocusedForeground="#36AAF7"
+                                                pu:TextBoxHelper.FocusedShadowColor="#36AAF7"
+                                                pu:TextBoxHelper.Icon="&#xe9e9;"
+                                                pu:TextBoxHelper.Watermark="输入自定义名称"
+                                                AcceptsReturn="True"
+                                                BorderThickness="1"
+                                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                                TextWrapping="Wrap"
+                                                VerticalScrollBarVisibility="Auto" />
+                                            <TextBlock
+                                                Margin="0,10,0,3"
+                                                Style="{StaticResource LabelStyle}"
+                                                Text="接口地址：" />
+                                            <TextBox
+                                                x:Name="txtPopupEndpoint"
+                                                Grid.Column="1"
+                                                Height="60"
+                                                pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                                pu:ShadowHelper.BlurRadius="15"
+                                                pu:ShadowHelper.Opacity="0.5"
+                                                pu:ShadowHelper.ShadowDepth="5"
+                                                pu:TextBoxHelper.CornerRadius="4"
+                                                pu:TextBoxHelper.FocusedBorderBrush="#36AAF7"
+                                                pu:TextBoxHelper.FocusedForeground="#36AAF7"
+                                                pu:TextBoxHelper.FocusedShadowColor="#36AAF7"
+                                                pu:TextBoxHelper.Icon="&#xe9e9;"
+                                                pu:TextBoxHelper.Watermark="输入接口地址"
+                                                AcceptsReturn="True"
+                                                BorderThickness="1"
+                                                FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                                TextWrapping="Wrap"
+                                                VerticalScrollBarVisibility="Auto" />
+                                            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                                <StackPanel>
+                                                    <TextBlock Style="{StaticResource LabelStyle}" Text="机器数量：" />
+                                                    <pu:NumberInput
+                                                        x:Name="txtPopupMachineCount"
+                                                        Width="100"
+                                                        Height="30"
+                                                        HorizontalAlignment="Stretch"
+                                                        CornerRadius="5"
+                                                        FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                                        Interval="1"
+                                                        Maximum="100"
+                                                        Minimum="1"
+                                                        Watermark="机器数量" />
+                                                </StackPanel>
+                                                <StackPanel Margin="10,0,0,0">
+                                                    <TextBlock Style="{StaticResource LabelStyle}" Text="频率设置：" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <ComboBox
+                                                            x:Name="cboPopuTestMode"
+                                                            Height="30"
+                                                            VerticalAlignment="Center"
+                                                            pu:ComboBoxHelper.ClearButtonVisibility="Collapsed"
+                                                            pu:ComboBoxHelper.CornerRadius="4,0,0,4"
+                                                            pu:ComboBoxHelper.ItemsHoverBackground="#2236AAF7"
+                                                            pu:ComboBoxHelper.ItemsSelectedBackground="#36AAF7"
+                                                            pu:ComboBoxHelper.ItemsSelectedForeground="#FFFFFF"
+                                                            pu:ComboBoxHelper.OpenedBorderThickness="0"
+                                                            pu:ComboBoxHelper.OpenedCornerRadius="4,4,0,0"
+                                                            pu:ComboBoxHelper.OpenedForeground="#36AAF7"
+                                                            pu:ComboBoxHelper.OpenedShadowColor="#36AAF7"
+                                                            pu:ComboBoxHelper.Watermark="Select an option"
+                                                            pu:ComboBoxHelper.WatermarkForeground="Gray"
+                                                            pu:DropDownHelper.BorderThickness="0"
+                                                            pu:DropDownHelper.CornerRadius="0,0,4,4"
+                                                            pu:DropDownHelper.ShadowColor="#36AAF7"
+                                                            pu:DropDownHelper.VerticalOffset="-1"
+                                                            pu:ShadowHelper.BlurRadius="15"
+                                                            pu:ShadowHelper.ShadowDepth="5"
+                                                            BorderThickness="1,1,0,1"
+                                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                                            SelectedIndex="0">
+                                                            <ComboBoxItem Tag="HighFrequency">高频压测（一秒几次）</ComboBoxItem>
+                                                            <ComboBoxItem Tag="StableMonitor">稳定监控（几秒几次）</ComboBoxItem>
+                                                        </ComboBox>
+                                                        <pu:NumberInput
+                                                            x:Name="txtPopuPollInterval"
+                                                            Width="50"
+                                                            Height="30"
+                                                            HorizontalAlignment="Stretch"
+                                                            BorderThickness="0,1,1,1"
+                                                            CornerRadius="0,4,4,0"
+                                                            FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                                            Interval="1"
+                                                            Maximum="100"
+                                                            Minimum="1" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel Margin="0,10,0,0">
+                                                <TextBlock Style="{StaticResource LabelStyle}" Text="JSON 参数：" />
+                                                <TextBox
+                                                    x:Name="txtPopuParametersJson"
+                                                    MinHeight="120"
+                                                    pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                                    pu:ShadowHelper.BlurRadius="15"
+                                                    pu:ShadowHelper.Opacity="0.5"
+                                                    pu:ShadowHelper.ShadowDepth="5"
+                                                    pu:TextBoxHelper.CornerRadius="4"
+                                                    pu:TextBoxHelper.FocusedBorderBrush="#36AAF7"
+                                                    pu:TextBoxHelper.FocusedForeground="#36AAF7"
+                                                    pu:TextBoxHelper.FocusedShadowColor="#36AAF7"
+                                                    pu:TextBoxHelper.Icon="&#xe9e9;"
+                                                    pu:TextBoxHelper.Watermark="请求参数（JSON格式，POST请求专用）"
+                                                    AcceptsReturn="True"
+                                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=9}"
+                                                    TextWrapping="Wrap"
+                                                    VerticalScrollBarVisibility="Auto" />
+                                            </StackPanel>
+                                            <StackPanel
+                                                Grid.Row="2"
+                                                Grid.Column="0"
+                                                Grid.ColumnSpan="2"
+                                                Margin="0,20,0,0"
+                                                HorizontalAlignment="Center"
+                                                Orientation="Horizontal">
 
+                                                <Button
+                                                    x:Name="btnPopupConfirm"
+                                                    Height="30"
+                                                    MinWidth="100"
+                                                    MaxWidth="140"
+                                                    Margin="0,0,10,0"
+                                                    pu:ButtonHelper.CornerRadius="4"
+                                                    pu:ButtonHelper.Icon="&#xe93d;"
+                                                    pu:ButtonHelper.ShadowColor="#2ECC71"
+                                                    pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                                    pu:IconHelper.FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                                                    pu:IconHelper.Margin="0,0,5,0"
+                                                    pu:ShadowHelper.BlurRadius="15"
+                                                    pu:ShadowHelper.ShadowDepth="5"
+                                                    Background="{StaticResource SuccessColor}"
+                                                    Click="BtnPopupConfirm_Click"
+                                                    Content="确定"
+                                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                                                    Foreground="#FFFFFF" />
+                                                <Button
+                                                    x:Name="btnPopupCancel"
+                                                    Height="30"
+                                                    MinWidth="100"
+                                                    MaxWidth="140"
+                                                    Margin="0,0,10,0"
+                                                    pu:ButtonHelper.CornerRadius="4"
+                                                    pu:ButtonHelper.Icon="&#xe933;"
+                                                    pu:ButtonHelper.ShadowColor="#E74C3C"
+                                                    pu:IconHelper.FontFamily="{StaticResource PanuonIconFont}"
+                                                    pu:IconHelper.FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                                                    pu:IconHelper.Margin="0,0,5,0"
+                                                    pu:ShadowHelper.BlurRadius="15"
+                                                    pu:ShadowHelper.ShadowDepth="5"
+                                                    Background="{StaticResource DangerColor}"
+                                                    Click="BtnPopupCancel_Click"
+                                                    Content="取消"
+                                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                                                    Foreground="#ffffff" />
+
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Popup>
                             <!--  ListBox：核心占满设置，取消外层Height限制，让其随父容器拉伸  -->
                             <ListBox
                                 x:Name="lbHistory"
@@ -717,6 +1116,11 @@
                     <ScrollViewer
                         Grid.Row="0"
                         Height="35"
+                        pu:ScrollBarHelper.HoverThumbBackground="#E0E0E0"
+                        pu:ScrollBarHelper.ThumbBackground="#ffb7c5"
+                        pu:ScrollViewerHelper.ContentSpacing="5"
+                        pu:ScrollViewerHelper.ScrollBarPosition="Outside"
+                        pu:ScrollViewerHelper.ScrollBarThickness="5"
                         HorizontalScrollBarVisibility="Auto"
                         VerticalScrollBarVisibility="Disabled">
                         <StackPanel

@@ -15,6 +15,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -34,6 +35,8 @@ namespace Nine.Design.PollingTool
         private HttpClient _httpClient;
         private bool _isPolling = false;
         private SynchronizationContext _uiContext;
+        // 新增：当前选中的测试模式（默认高频压测）
+        private TestMode _currentTestMode = TestMode.HighFrequency;
 
         // 日志配置
         private readonly List<Brush> _logBrushes = new List<Brush>
@@ -49,12 +52,14 @@ namespace Nine.Design.PollingTool
         private const int FileOperationRetryCount = 3;
         private const int FileOperationRetryDelay = 100;
 
-        // 高频请求控制（移除多机器日志缓存，保留全局日志和日志标记）
-        private int _maxRequestsPerSecond = 200;
+        // 核心修改：将「每秒请求数」改为「请求间隔秒数」
+        private int _requestConfigValue = 2; // 配置值（随模式变化：高频=每秒次数，稳定=间隔秒数）
+        private int _requestIntervalSeconds = 2;// 最终用于请求控制的间隔毫秒数（内部计算使用）
         private readonly ConcurrentQueue<LogEntry> _globalLogQueue = new ConcurrentQueue<LogEntry>(); // 全局日志队列（带机器标记）
         private List<LogEntry> _filteredLogList = new List<LogEntry>(); // 过滤后的日志列表
         private int _currentFilterMachineId = 0; // 当前过滤的机器ID（0=全部）
         private DispatcherTimer _logUiTimer;
+
 
         // 端口监控与统计
         private int _maxPortUsage = 50000;
@@ -74,6 +79,8 @@ namespace Nine.Design.PollingTool
         private readonly ConcurrentDictionary<int, DateTime> _machineLastRequestTime = new ConcurrentDictionary<int, DateTime>();
         private TimeSpan _totalPollingTime = TimeSpan.Zero;
 
+        private HistoryItem _currentEditingItem = null;
+
         // 构造函数
         public MainWindow()
         {
@@ -90,8 +97,8 @@ namespace Nine.Design.PollingTool
             Loaded += (s, e) =>
             {
                 _uiContext = SynchronizationContext.Current;
-                rbGet.Checked += HttpMethodChecked;
-                rbPost.Checked += HttpMethodChecked;
+                //rbGet.Checked += HttpMethodChecked;
+                //rbPost.Checked += HttpMethodChecked;
                 TxtEndpoint_TextChanged(null, null);
                 txtEndpoint.TextChanged += TxtEndpoint_TextChanged;
                 btnStartPolling.IsEnabled = !string.IsNullOrWhiteSpace(txtEndpoint.Text);
@@ -99,17 +106,72 @@ namespace Nine.Design.PollingTool
                 UpdateMachineFilterButtons(); // 替换原有UpdateMachineTabItems
                 txtMachineCount.ValueChanged += txtMachineCount_ValueChanged;
 
-                if (btnLoadFromHistory != null)
-                {
-                    btnLoadFromHistory.Click += LoadFromHistory_Click;
-                }
+                // 绑定请求间隔输入框事件（核心修改：对应请求间隔秒数）
+                txtPollInterval.ValueChanged += txtPollInterval_ValueChanged;
+                // 默认值设置为2秒
+                txtPollInterval.Value = _requestIntervalSeconds;
+
+                //if (btnLoadFromHistory != null)
+                //{
+                //    btnLoadFromHistory.Click += LoadFromHistory_Click;
+                //}
+                // 初始化配置描述标签
+                UpdateConfigDescLabel();
+                cboTestMode.SelectionChanged += CboTestMode_SelectionChanged;
 
                 LoadHistory();
                 AddLogEntry("[系统] 程序启动，实时统计面板已启用", 0);
-                AddLogEntry($"[系统] 默认请求频率：{_maxRequestsPerSecond}次/秒 | 端口上限：{_maxPortUsage}", 0);
+                AddLogEntry($"[系统] 默认请求间隔：{_requestIntervalSeconds}秒/次 | 端口上限：{_maxPortUsage}", 0);
             };
 
             Closing += MainWindow_Closing;
+        }
+
+        /// <summary>
+        /// 测试模式切换事件（核心：切换模式并更新逻辑）
+        /// </summary>
+        private void CboTestMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cboTestMode.SelectedItem is ComboBoxItem selectedItem && selectedItem.Tag is string tag)
+                {
+                    // 更新当前测试模式
+                    _currentTestMode = tag == "HighFrequency" ? TestMode.HighFrequency : TestMode.StableMonitor;
+
+                    // 更新配置描述标签
+                    UpdateConfigDescLabel();
+
+                    // 重新加载配置值（实时生效）
+                    UpdateRequestConfigFromInput();
+
+                    // 输出日志
+                    string modeDesc = _currentTestMode == TestMode.HighFrequency ? "高频压测模式（一秒几次）" : "稳定监控模式（几秒一次）";
+                    AddLogEntry($"[系统] 已切换测试模式：{modeDesc}，当前配置值：{_requestConfigValue}", 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry($"[系统] 切换测试模式失败：{ex.Message}", 0, true);
+            }
+        }
+
+        /// <summary>
+        /// 动态更新配置值描述标签
+        /// </summary>
+        private void UpdateConfigDescLabel()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (_currentTestMode == TestMode.HighFrequency)
+                {
+                    lblConfigDesc.Text = "每秒发起请求次数";
+                }
+                else
+                {
+                    lblConfigDesc.Text = "每次请求间隔秒数";
+                }
+            });
         }
 
         // 窗口大小改变事件（保持不变）
@@ -119,7 +181,7 @@ namespace Nine.Design.PollingTool
             this.FontSize = 12 * scale;
         }
 
-        #region 初始化方法（保持原有，仅修改日志UI定时器逻辑）
+        #region 初始化方法（保持原有，仅修改日志提示）
         private void InitializeTcpParameters()
         {
             try
@@ -262,7 +324,7 @@ namespace Nine.Design.PollingTool
         }
         #endregion
 
-        #region 定时器回调（重构：日志UI更新 + 统计更新）
+        #region 定时器回调（保持不变）
         private void PortMonitorTimer_Tick(object sender, EventArgs e)
         {
             try
@@ -427,28 +489,28 @@ namespace Nine.Design.PollingTool
         }
         #endregion
 
-        #region 核心业务逻辑（重构：机器按钮 + 日志过滤 + 统计切换）
-        private void HttpMethodChecked(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (sender is RadioButton radioButton && radioButton.IsChecked.HasValue && radioButton.IsChecked.Value)
-                {
-                    _selectedHttpMethod = (radioButton == rbGet) ? HttpMethod.Get : HttpMethod.Post;
-                    AddLogEntry($"[系统] 请求方法已切换为: {_selectedHttpMethod.Method}", 0);
+        #region 核心业务逻辑（核心修改：请求间隔逻辑）
+        //private void HttpMethodChecked(object sender, RoutedEventArgs e)
+        //{
+        //    try
+        //    {
+        //        if (sender is RadioButton radioButton && radioButton.IsChecked.HasValue && radioButton.IsChecked.Value)
+        //        {
+        //            _selectedHttpMethod = (radioButton == rbGet) ? HttpMethod.Get : HttpMethod.Post;
+        //            AddLogEntry($"[系统] 请求方法已切换为: {_selectedHttpMethod.Method}", 0);
 
-                    Dispatcher.Invoke(() =>
-                    {
-                        rbGet.IsChecked = (radioButton == rbGet);
-                        rbPost.IsChecked = (radioButton == rbPost);
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogEntry($"[系统] 切换请求方法失败：{ex.Message}", 0, true);
-            }
-        }
+        //            Dispatcher.Invoke(() =>
+        //            {
+        //                rbGet.IsChecked = (radioButton == rbGet);
+        //                rbPost.IsChecked = (radioButton == rbPost);
+        //            });
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        AddLogEntry($"[系统] 切换请求方法失败：{ex.Message}", 0, true);
+        //    }
+        //}
 
         /// <summary>
         /// 重构：创建/更新机器过滤按钮（替换原有Tab页面创建）
@@ -475,7 +537,6 @@ namespace Nine.Design.PollingTool
 
                     // 3. 清空原有机器数据
                     _allMachineData.Clear();
-                    // 注释：_machineLogCaches 已移除，无需兼容
 
                     // 4. 初始化全局统计数据
                     var totalOverviewData = new MachineDataModel();
@@ -524,14 +585,12 @@ namespace Nine.Design.PollingTool
                 btn.Background = (SolidColorBrush)FindResource("PrimaryColor");
 
                 // 3. 更新统计数据和日志UI
-                // 修正点1：Dictionary 改用 TryGetValue 替代 GetValueOrDefault（兼容所有框架版本）
                 if (_allMachineData.TryGetValue(machineId, out MachineDataModel machineData))
                 {
                     _currentDisplayData = machineData;
                 }
                 else
                 {
-                    // 若未找到，使用默认实例（保持原有逻辑）
                     _currentDisplayData = new MachineDataModel();
                 }
 
@@ -555,7 +614,6 @@ namespace Nine.Design.PollingTool
             btnAllLogs.Background = (SolidColorBrush)FindResource("PrimaryColor");
 
             // 3. 更新统计数据和日志UI
-            // 修正点2：Dictionary 改用 TryGetValue 替代 GetValueOrDefault
             if (_allMachineData.TryGetValue(0, out MachineDataModel globalData))
             {
                 _currentDisplayData = globalData;
@@ -648,12 +706,12 @@ namespace Nine.Design.PollingTool
 
         private async Task PollEndpoint(int machineId, string endpoint, HttpMethod requestMethod, CancellationToken cancellationToken)
         {
-            AddLogEntry($"轮询任务已启动（高频模式）", machineId);
+            AddLogEntry($"轮询任务已启动（间隔模式：{_requestIntervalSeconds}秒/次）", machineId);
             Dictionary<string, int> machineStats = new Dictionary<string, int>
             {
                 { "超时", 0 }, { "网络错误", 0 }, { "HTTP错误", 0 },
                 { "参数错误", 0 }, { "其他错误", 0 }, { "成功次数", 0 },
-                { "端口超限", 0 }, { "频率限制", 0 }
+                { "端口超限", 0 }
             };
             _errorStats[machineId] = machineStats;
 
@@ -678,31 +736,11 @@ namespace Nine.Design.PollingTool
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        // 频率控制
-                        TimeSpan delayTime = TimeSpan.Zero;
-                        if (_maxRequestsPerSecond > 0)
-                        {
-                            // 修正点3：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault
-                            DateTime lastTime = DateTime.MinValue;
-                            if (_machineLastRequestTime.TryGetValue(machineId, out DateTime storedLastTime))
-                            {
-                                lastTime = storedLastTime;
-                            }
+                        // 统一间隔控制（适配两种模式，_requestIntervalSeconds 已提前计算为毫秒）
+                        await Task.Delay(_requestIntervalSeconds, cancellationToken).ConfigureAwait(false);
 
-                            var minInterval = TimeSpan.FromSeconds(1.0 / _maxRequestsPerSecond);
-                            var currentTime = DateTime.Now;
-                            if (currentTime - lastTime < minInterval)
-                            {
-                                delayTime = minInterval - (currentTime - lastTime);
-                                machineStats["频率限制"]++;
-                            }
-                            _machineLastRequestTime[machineId] = DateTime.Now;
-
-                            if (delayTime > TimeSpan.Zero)
-                            {
-                                await Task.Delay(delayTime, cancellationToken).ConfigureAwait(false);
-                            }
-                        }
+                        // 更新上次请求时间
+                        _machineLastRequestTime[machineId] = DateTime.Now;
 
                         AddLogEntry($"发起请求...(重试：{retryCount})", machineId);
                         DateTime requestStartTime = DateTime.Now;
@@ -744,7 +782,6 @@ namespace Nine.Design.PollingTool
                             double responseTimeMs = responseTime.TotalMilliseconds;
 
                             // 更新响应时间极值
-                            // 修正点4：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault
                             var currentExtremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
                             if (_responseTimeExtremes.TryGetValue(machineId, out Tuple<double, double> storedExtremes))
                             {
@@ -822,17 +859,48 @@ namespace Nine.Design.PollingTool
         {
             await Dispatcher.InvokeAsync(async () =>
             {
-                int userMaxRequests = 0;
-                if (int.TryParse(txtPollInterval.Value.ToString(), out userMaxRequests) && userMaxRequests > 0)
-                {
-                    _maxRequestsPerSecond = userMaxRequests;
-                    AddLogEntry($"[系统] 请求频率更新为：{_maxRequestsPerSecond}次/秒", 0);
-                }
+                // 更新请求间隔（从输入框读取）
+                UpdateRequestConfigFromInput();
 
                 UpdateMachineFilterButtons();
                 await StartPollingAsync();
                 SaveHistory();
             });
+        }
+
+        /// <summary>
+        /// 重构：根据当前模式，读取输入框配置值并计算最终请求间隔
+        /// </summary>
+        private void UpdateRequestConfigFromInput()
+        {
+            int inputValue = 1; // 最小配置值为1
+            if (txtPollInterval.Value.HasValue && int.TryParse(txtPollInterval.Value.Value.ToString(), out inputValue) && inputValue >= 1)
+            {
+                _requestConfigValue = inputValue;
+            }
+            else
+            {
+                // 无效值时默认1，更新输入框显示
+                _requestConfigValue = 1;
+                txtPollInterval.Value = 1;
+                AddLogEntry($"[系统] 配置值无效（必须≥1），已设为默认值：1", 0, true);
+            }
+
+            // 核心：根据模式计算最终的「请求间隔毫秒数」（统一转换为毫秒，方便后续逻辑处理）
+            if (_currentTestMode == TestMode.HighFrequency)
+            {
+                // 高频压测模式（一秒几次）：计算每次请求的间隔毫秒数
+                // 例如：每秒5次 → 每次间隔 1000 / 5 = 200 毫秒
+                _requestIntervalSeconds = (int)(1000 / (double)_requestConfigValue);
+                // 防止配置值过大导致间隔为0（最小间隔10毫秒，避免请求过于密集）
+                _requestIntervalSeconds = Math.Max(_requestIntervalSeconds, 10);
+            }
+            else
+            {
+                // 稳定监控模式（几秒一次）：直接转换为毫秒
+                // 例如：3秒一次 → 3000 毫秒
+                _requestIntervalSeconds = _requestConfigValue * 1000;
+            }
         }
 
         private async Task StartPollingAsync()
@@ -848,23 +916,26 @@ namespace Nine.Design.PollingTool
                         throw new InvalidOperationException("Endpoint不能为空");
                     }
 
-                    int tempMachineCount;
-                    if (!int.TryParse(txtMachineCount.Value.ToString(), out tempMachineCount) || tempMachineCount <= 0)
+                    int tempMachineCount = 1;
+                    if (!txtMachineCount.Value.HasValue || !int.TryParse(txtMachineCount.Value.Value.ToString(), out tempMachineCount) || tempMachineCount <= 0)
                     {
                         AddLogEntry("[系统] 机器数量无效", 0);
                         MessageBox.Show("机器数量必须是大于0的整数", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                         throw new InvalidOperationException("机器数量无效");
                     }
 
-                    AddLogEntry($"[系统] 频率限制: {_maxRequestsPerSecond}次/秒 | 端口上限: {_maxPortUsage}", 0);
+                    AddLogEntry($"[系统] 请求间隔: {_requestIntervalSeconds}秒/次 | 端口上限: {_maxPortUsage}", 0);
                 });
 
                 string endpoint = await Dispatcher.InvokeAsync(() => txtEndpoint.Text);
                 HttpMethod requestMethod = _selectedHttpMethod;
                 int machineCount = await Dispatcher.InvokeAsync(() =>
                 {
-                    int tempCount;
-                    int.TryParse(txtMachineCount.Value.ToString(), out tempCount);
+                    int tempCount = 1;
+                    if (txtMachineCount.Value.HasValue)
+                    {
+                        int.TryParse(txtMachineCount.Value.Value.ToString(), out tempCount);
+                    }
                     return tempCount;
                 });
 
@@ -886,7 +957,7 @@ namespace Nine.Design.PollingTool
                 await Dispatcher.InvokeAsync(() =>
                 {
                     btnStartPolling.IsEnabled = false;
-                    AddLogEntry($"[系统] 高频轮询已开始. 机器数: {machineCount}, 频率: {_maxRequestsPerSecond}次/秒", 0);
+                    AddLogEntry($"[系统] 轮询已开始. 机器数: {machineCount}, 请求间隔: {_requestIntervalSeconds}秒/次", 0);
                 });
             }
             catch (Exception ex)
@@ -941,7 +1012,7 @@ namespace Nine.Design.PollingTool
                 btnStartPolling.IsEnabled = !string.IsNullOrWhiteSpace(txtEndpoint.Text);
             });
 
-            AddLogEntry("[系统] 高频轮询已停止", 0);
+            AddLogEntry("[系统] 轮询已停止", 0);
             double successRate = 0;
             if (_totalRequestsSent > 0)
             {
@@ -949,9 +1020,25 @@ namespace Nine.Design.PollingTool
             }
             AddLogEntry($"[统计] 总请求: {_totalRequestsSent} | 成功: {_totalSuccessfulRequests} | 成功率: {successRate:F2}%", 0);
         }
+
+        /// <summary>
+        /// txtPollInterval值变化事件（核心修改：更新请求间隔秒数）
+        /// </summary>
+        private void txtPollInterval_ValueChanged(object sender, Panuon.WPF.SelectedValueChangedRoutedEventArgs<double?> e)
+        {
+            try
+            {
+                // 运行中修改也能实时生效
+                UpdateRequestConfigFromInput();
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry($"[系统] 更新请求间隔失败：{ex.Message}", 0, true);
+            }
+        }
         #endregion
 
-        #region 辅助方法（重构：日志条目 + 移除Tab相关查找）
+        #region 辅助方法（修改日志中的频率描述为间隔）
         private int GetCurrentProcessTcpConnectionCount()
         {
             try
@@ -1013,7 +1100,7 @@ namespace Nine.Design.PollingTool
                 }
                 string timeFormat = $"{totalTime.Hours:D2}:{totalTime.Minutes:D2}:{totalTime.Seconds:D2}.{totalTime.Milliseconds:D3}";
 
-                AddLogEntry($"[全局] 总时长: {timeFormat} | 频率: {_maxRequestsPerSecond}次/秒 | 端口上限: {_maxPortUsage}", 0);
+                AddLogEntry($"[全局] 总时长: {timeFormat} | 请求间隔: {_requestIntervalSeconds}秒/次 | 端口上限: {_maxPortUsage}", 0);
                 double globalSuccessRate = 0;
                 if (_totalRequestsSent > 0)
                 {
@@ -1025,14 +1112,12 @@ namespace Nine.Design.PollingTool
                 foreach (var kvp in _machineTotalRequests)
                 {
                     int machineId = kvp.Key;
-                    // 修正点5：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault
                     Dictionary<string, int> stats = new Dictionary<string, int>();
                     if (_errorStats.TryGetValue(machineId, out Dictionary<string, int> storedStats))
                     {
                         stats = storedStats;
                     }
 
-                    // 修正点6：ConcurrentDictionary 改用 TryGetValue 替代 GetValueOrDefault（原有逻辑保留，仅替换取值方式）
                     Tuple<double, double> extremes = new Tuple<double, double>(double.MaxValue, double.MinValue);
                     if (_responseTimeExtremes.TryGetValue(machineId, out Tuple<double, double> storedExtremes))
                     {
@@ -1040,8 +1125,7 @@ namespace Nine.Design.PollingTool
                     }
 
                     int machineTotal = kvp.Value;
-                    // 修正1：_machineSuccessRequests 是 ConcurrentDictionary，改用 TryGetValue 替代 GetValueOrDefault
-                    int machineSuccess = 0; // 先初始化默认值
+                    int machineSuccess = 0;
                     if (_machineSuccessRequests.TryGetValue(machineId, out int storedMachineSuccess))
                     {
                         machineSuccess = storedMachineSuccess;
@@ -1057,8 +1141,6 @@ namespace Nine.Design.PollingTool
                         maxTime = $"{extremes.Item2:F2}ms";
                     }
 
-                    // 修正2：stats 是 Dictionary<string, int>，兼容低版本框架，改用 TryGetValue 替代 GetValueOrDefault
-                    // 先初始化各错误类型的默认值为 0
                     int timeoutCount = 0;
                     if (stats.TryGetValue("超时", out int storedTimeoutCount))
                     {
@@ -1088,74 +1170,339 @@ namespace Nine.Design.PollingTool
         {
             ClearLogs();
         }
-
-        private void LoadFromHistory_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// 加载最新历史记录按钮点击事件（重新读取磁盘文件，刷新ListBox和界面控件）
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private bool _isLoadingHistory = false; // 防重复执行锁
+        private void LoadFromHistory_Click(object sender, EventArgs e)
         {
+            // 防重复执行：如果正在加载，直接返回，避免重复弹窗和逻辑
+            if (_isLoadingHistory)
+            {
+                return;
+            }
+
             try
             {
-                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PollingHistory.config");
+                _isLoadingHistory = true; // 标记开始执行
+
+                // 1. 统一历史文件路径（和SaveHistory保持一致）
+                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "history.json");
+
+                // 2. 检查文件是否存在
                 if (!File.Exists(historyPath))
                 {
-                    AddLogEntry("[系统] 无历史配置文件可加载", 0, true);
-                    MessageBox.Show("未找到历史配置文件", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    AddLogEntry("[系统] 无历史记录文件可加载（未找到history.json）", 0, true);
+                    MessageBox.Show("未找到历史记录文件，请先保存过配置再尝试", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
-                string content = ReadFileContentWithRetry(historyPath);
-                var historyData = JsonConvert.DeserializeObject<Dictionary<string, string>>(content);
-                if (historyData == null || historyData.Count == 0)
+                // 3. 重新从磁盘读取文件内容（无缓存，确保最新）
+                string existingContent = string.Empty;
+                existingContent = ReadFileContentWithRetry(historyPath);
+
+                // 4. 检查文件内容是否有效
+                if (string.IsNullOrWhiteSpace(existingContent))
                 {
-                    AddLogEntry("[系统] 历史配置文件为空，无法加载", 0, true);
-                    MessageBox.Show("历史配置文件内容无效", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    AddLogEntry("[系统] 历史记录文件内容为空，无法加载", 0, true);
+                    MessageBox.Show("历史记录文件内容无效，无法加载", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
+                // 5. 反序列化为HistoryRoot（适配数组格式，容错处理）
+                HistoryRoot historyRoot = null;
+                historyRoot = JsonConvert.DeserializeObject<HistoryRoot>(existingContent);
+
+                if (historyRoot == null || historyRoot.HistoryList == null || historyRoot.HistoryList.Count == 0)
+                {
+                    AddLogEntry("[系统] 历史记录文件中无有效配置项", 0, true);
+                    MessageBox.Show("历史记录中没有可加载的配置", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // 6. 获取最新一条历史记录（按保存时间倒序，确保取到最新）
+                HistoryItem latestHistoryItem = historyRoot.HistoryList
+                    .OrderByDescending(item => item.SavedTime)
+                    .FirstOrDefault();
+
+                if (latestHistoryItem == null)
+                {
+                    AddLogEntry("[系统] 无法提取最新的历史记录", 0, true);
+                    MessageBox.Show("无法获取有效最新历史记录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // 7. 切换到UI线程，更新所有控件和ListBox
                 Dispatcher.Invoke(() =>
                 {
-                    if (historyData.ContainsKey("Endpoint"))
+                    // ===== 第一步：刷新ListBox（lbHistory），同步最新历史记录（倒序，最新在前） =====
+                    var sortedHistoryList = historyRoot.HistoryList
+                        .OrderByDescending(item => item.SavedTime)
+                        .ToList();
+
+                    // 先清空原有绑定，避免WPF列表刷新异常
+                    lbHistory.ItemsSource = null;
+                    // 重新绑定排序后的列表
+                    lbHistory.ItemsSource = sortedHistoryList;
+                    // 自动选中最新一条记录，保持界面状态统一
+                    if (sortedHistoryList.Count > 0)
                     {
-                        txtEndpoint.Text = historyData["Endpoint"];
+                        lbHistory.SelectedItem = latestHistoryItem;
                     }
 
-                    int machineCount = 1;
-                    if (historyData.ContainsKey("MachineCount") && int.TryParse(historyData["MachineCount"], out machineCount))
+                    // ===== 第二步：基础输入框赋值（兼容空值） =====
+                    txtEndpoint.Text = latestHistoryItem.Endpoint ?? string.Empty;
+
+                    if (!string.IsNullOrWhiteSpace(latestHistoryItem.MachineCount) && double.TryParse(latestHistoryItem.MachineCount, out double machineCount))
                     {
                         txtMachineCount.Value = machineCount;
                     }
-
-                    int reqPerSec = 200;
-                    if (historyData.ContainsKey("MaxRequestsPerSecond") && int.TryParse(historyData["MaxRequestsPerSecond"], out reqPerSec))
+                    else
                     {
-                        txtPollInterval.Value = reqPerSec;
+                        txtMachineCount.Value = 1;
                     }
 
-                    if (historyData.ContainsKey("HttpMethod"))
+                    if (!string.IsNullOrWhiteSpace(latestHistoryItem.PollInterval) && double.TryParse(latestHistoryItem.PollInterval, out double pollInterval))
                     {
-                        if (historyData["HttpMethod"] == "Get")
+                        txtPollInterval.Value = pollInterval;
+                    }
+                    else
+                    {
+                        txtPollInterval.Value = 1;
+                    }
+
+                    txtParametersJson.Text = latestHistoryItem.ParametersJson ?? string.Empty;
+
+                    // ===== 第三步：恢复Http请求方法下拉框（cboHttpMethod） =====
+                    string httpMethod = latestHistoryItem.HttpMethod ?? "GET";
+                    bool isHttpMethodMatched = false;
+
+                    foreach (ComboBoxItem item in cboHttpMethod.Items)
+                    {
+                        string itemTag = item.Tag?.ToString() ?? "";
+                        if (string.Equals(itemTag, httpMethod, StringComparison.OrdinalIgnoreCase))
                         {
-                            rbGet.IsChecked = true;
-                        }
-                        else
-                        {
-                            rbPost.IsChecked = true;
+                            cboHttpMethod.SelectedItem = item;
+                            _selectedHttpMethod = itemTag.ToUpper() == "GET" ? HttpMethod.Get : HttpMethod.Post;
+                            isHttpMethodMatched = true;
+                            break;
                         }
                     }
 
-                    if (historyData.ContainsKey("ParametersJson"))
+                    if (!isHttpMethodMatched)
                     {
-                        txtParametersJson.Text = historyData["ParametersJson"];
+                        cboHttpMethod.SelectedIndex = 0;
+                        _selectedHttpMethod = HttpMethod.Get;
+                    }
+
+                    // ===== 第四步：恢复测试模式下拉框（cboTestMode） =====
+                    string testMode = latestHistoryItem.TestMode ?? "HighFrequency";
+                    bool isModeMatched = false;
+
+                    foreach (ComboBoxItem item in cboTestMode.Items)
+                    {
+                        string itemTag = item.Tag?.ToString() ?? "";
+                        if (string.Equals(itemTag, testMode, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cboTestMode.SelectedItem = item;
+                            CboTestMode_SelectionChanged(cboTestMode, null);
+                            isModeMatched = true;
+                            break;
+                        }
+                    }
+
+                    if (!isModeMatched)
+                    {
+                        cboTestMode.SelectedIndex = 0;
+                        CboTestMode_SelectionChanged(cboTestMode, null);
+                    }
+
+                    // ===== 第五步：更新请求配置值，确保逻辑一致 =====
+                    if (!string.IsNullOrWhiteSpace(latestHistoryItem.RequestConfigValue) && int.TryParse(latestHistoryItem.RequestConfigValue, out int configValue))
+                    {
+                        _requestConfigValue = configValue;
+                        UpdateRequestConfigFromInput();
                     }
                 });
 
-                AddLogEntry("[系统] 历史配置已成功加载", 0);
-                MessageBox.Show("历史配置加载完成", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                // 8. 输出日志并弹出成功提示
+                AddLogEntry($"[系统] 已成功加载最新历史记录（保存时间：{latestHistoryItem.SavedTime:yyyy-MM-dd HH:mm:ss}）", 0);
+                MessageBox.Show("最新历史记录加载完成！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (JsonSerializationException ex)
+            {
+                // 专门捕获反序列化格式错误（最常见）
+                AddLogEntry($"[系统] 加载历史记录失败：配置文件格式不匹配 - {ex.Message}", 0, true);
+                MessageBox.Show("历史记录文件格式错误，无法加载\n请检查history.json文件是否完整", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                AddLogEntry($"[系统] 加载历史配置失败：{ex.Message}", 0, true);
-                MessageBox.Show($"加载失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                // 捕获其他所有异常，避免程序崩溃
+                AddLogEntry($"[系统] 加载历史记录失败：{ex.Message}", 0, true);
+                MessageBox.Show($"加载历史记录出错：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                // 无论成功还是失败，都标记执行结束，允许下次点击
+                _isLoadingHistory = false;
             }
         }
+
+        /// <summary>
+        /// Http请求方法下拉框切换事件（更新全局变量_selectedHttpMethod）
+        /// </summary>
+        private void CboHttpMethod_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (cboHttpMethod.SelectedItem is ComboBoxItem selectedItem)
+                {
+                    string methodTag = selectedItem.Tag?.ToString() ?? "GET";
+                    // 更新全局变量，确保后续请求使用正确的方法
+                    _selectedHttpMethod = methodTag.ToUpper() == "GET" ? HttpMethod.Get : HttpMethod.Post;
+
+                    // 可选：输出日志，方便调试
+                    AddLogEntry($"[系统] 已切换请求方法：{_selectedHttpMethod.Method}", 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry($"[系统] 切换请求方法失败：{ex.Message}", 0, true);
+            }
+        }
+
+        //private void LoadFromHistory_Click(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        // 1. 统一文件路径（和保存历史的路径一致，指向history.json）
+        //        string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "history.json");
+
+        //        // 2. 先判断文件是否存在，避免「文件未找到」异常
+        //        if (!File.Exists(historyPath))
+        //        {
+        //            AddLogEntry("[系统] 无历史记录文件可加载（未找到history.json）", 0, true);
+        //            MessageBox.Show("未找到历史记录文件，请先保存过配置再尝试", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        //            return;
+        //        }
+
+        //        // 3. 读取文件内容（复用你已有的重试读取方法，提高稳定性）
+        //        string existingContent = ReadFileContentWithRetry(historyPath);
+        //        if (string.IsNullOrWhiteSpace(existingContent))
+        //        {
+        //            AddLogEntry("[系统] 历史记录文件内容为空，无法加载", 0, true);
+        //            MessageBox.Show("历史记录文件内容无效，无法加载", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+        //            return;
+        //        }
+
+        //        // 4. 反序列化为HistoryRoot（适配现有数组格式），避免格式不匹配异常
+        //        HistoryRoot historyRoot = JsonConvert.DeserializeObject<HistoryRoot>(existingContent);
+        //        if (historyRoot == null || historyRoot.HistoryList == null || historyRoot.HistoryList.Count == 0)
+        //        {
+        //            AddLogEntry("[系统] 历史记录文件中无有效配置项", 0, true);
+        //            MessageBox.Show("历史记录中没有可加载的配置", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        //            return;
+        //        }
+
+        //        // 5. 取最新一条历史记录（按保存时间倒序，取第一条）
+        //        HistoryItem latestHistoryItem = historyRoot.HistoryList
+        //            .OrderByDescending(item => item.SavedTime)
+        //            .FirstOrDefault();
+        //        if (latestHistoryItem == null)
+        //        {
+        //            AddLogEntry("[系统] 无法获取最新的历史记录", 0, true);
+        //            MessageBox.Show("无法提取有效历史记录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+        //            return;
+        //        }
+
+        //        // 6. 切换到UI线程，更新所有控件状态（避免跨线程访问异常）
+        //        Dispatcher.Invoke(() =>
+        //        {
+        //            // ===== 基础输入框赋值 =====
+        //            txtEndpoint.Text = latestHistoryItem.Endpoint ?? string.Empty;
+        //            // 兼容空值，避免转换失败
+        //            if (!string.IsNullOrWhiteSpace(latestHistoryItem.MachineCount) && double.TryParse(latestHistoryItem.MachineCount, out double machineCount))
+        //            {
+        //                txtMachineCount.Value = machineCount;
+        //            }
+        //            else
+        //            {
+        //                txtMachineCount.Value = 1;
+        //            }
+
+        //            if (!string.IsNullOrWhiteSpace(latestHistoryItem.PollInterval) && double.TryParse(latestHistoryItem.PollInterval, out double pollInterval))
+        //            {
+        //                txtPollInterval.Value = pollInterval;
+        //            }
+        //            else
+        //            {
+        //                txtPollInterval.Value = 1;
+        //            }
+
+        //            txtParametersJson.Text = latestHistoryItem.ParametersJson ?? string.Empty;
+
+        //            // ===== 恢复HttpMethod单选按钮（Get/Post） =====
+        //            string httpMethod = latestHistoryItem.HttpMethod ?? "GET";
+        //            switch (httpMethod.ToUpper())
+        //            {
+        //                case "GET":
+        //                    rbGet.IsChecked = true;
+        //                    rbPost.IsChecked = false;
+        //                    _selectedHttpMethod = HttpMethod.Get;
+        //                    break;
+        //                case "POST":
+        //                    rbPost.IsChecked = true;
+        //                    rbGet.IsChecked = false;
+        //                    _selectedHttpMethod = HttpMethod.Post;
+        //                    break;
+        //                default:
+        //                    rbGet.IsChecked = true;
+        //                    _selectedHttpMethod = HttpMethod.Get;
+        //                    break;
+        //            }
+
+        //            // ===== 恢复测试模式下拉框（cboTestMode） =====
+        //            string testMode = latestHistoryItem.TestMode ?? "HighFrequency";
+        //            bool isModeMatched = false;
+        //            foreach (ComboBoxItem item in cboTestMode.Items)
+        //            {
+        //                string itemTag = item.Tag?.ToString() ?? "";
+        //                if (string.Equals(itemTag, testMode, StringComparison.OrdinalIgnoreCase))
+        //                {
+        //                    cboTestMode.SelectedItem = item;
+        //                    CboTestMode_SelectionChanged(cboTestMode, null);
+        //                    isModeMatched = true;
+        //                    break;
+        //                }
+        //            }
+
+        //            // 未匹配到有效模式，默认选中高频压测
+        //            if (!isModeMatched)
+        //            {
+        //                cboTestMode.SelectedIndex = 0;
+        //                CboTestMode_SelectionChanged(cboTestMode, null);
+        //            }
+        //        });
+
+        //        // 7. 输出日志，提示加载成功
+        //        AddLogEntry($"[系统] 已成功加载最新历史记录（保存时间：{latestHistoryItem.SavedTime:yyyy-MM-dd HH:mm:ss}）", 0);
+        //        MessageBox.Show("最新历史记录加载完成！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        //    }
+        //    catch (JsonSerializationException ex)
+        //    {
+        //        // 专门捕获反序列化格式错误（最常见报错）
+        //        AddLogEntry($"[系统] 加载历史记录失败：配置文件格式不匹配 - {ex.Message}", 0, true);
+        //        MessageBox.Show("历史记录文件格式错误，无法加载\n请检查history.json文件是否完整", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        // 捕获其他所有异常，避免程序崩溃
+        //        AddLogEntry($"[系统] 加载历史记录失败：{ex.Message}", 0, true);
+        //        MessageBox.Show($"加载历史记录出错：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        //    }
+        //}
 
         private void txtMachineCount_ValueChanged(object sender, Panuon.WPF.SelectedValueChangedRoutedEventArgs<double?> e)
         {
@@ -1218,7 +1565,7 @@ namespace Nine.Design.PollingTool
                         sw.WriteLine($"程序版本: {AppDomain.CurrentDomain.FriendlyName}");
                         sw.WriteLine($"操作系统: {Environment.OSVersion.VersionString}");
                         sw.WriteLine($"CPU核心数: {Environment.ProcessorCount}");
-                        sw.WriteLine($"请求频率: {_maxRequestsPerSecond}次/秒");
+                        sw.WriteLine($"请求间隔: {_requestIntervalSeconds}秒/次");
                         sw.WriteLine($"端口占用: {_currentPortCount}/{_maxPortUsage}");
                         sw.WriteLine($"总请求数: {_totalRequestsSent}");
                         sw.WriteLine($"======================================================");
@@ -1340,7 +1687,7 @@ namespace Nine.Design.PollingTool
                     });
 
                     finalContent.AppendLine($"请求方法: {_selectedHttpMethod.Method}");
-                    finalContent.AppendLine($"请求频率: {_maxRequestsPerSecond}次/秒");
+                    finalContent.AppendLine($"请求间隔: {_requestIntervalSeconds}秒/次");
                     finalContent.AppendLine($"端口上限: {_maxPortUsage}");
                     double exportSuccessRate = _totalRequestsSent > 0 ? (double)_totalSuccessfulRequests / _totalRequestsSent * 100 : 0;
                     finalContent.AppendLine($"总请求数: {_totalRequestsSent} | 成功: {_totalSuccessfulRequests} | 成功率: {exportSuccessRate:F2}%");
@@ -1477,11 +1824,21 @@ namespace Nine.Design.PollingTool
                 if (File.Exists(historyPath))
                 {
                     string content = ReadFileContentWithRetry(historyPath);
-                    var historyData = JsonConvert.DeserializeObject<HistoryData>(content);
-                    if (historyData != null)
+                    var historyRoot = JsonConvert.DeserializeObject<HistoryRoot>(content);
+                    if (historyRoot != null && historyRoot.HistoryList != null)
                     {
-                        lbHistory.ItemsSource = historyData.Items;
-                        AddLogEntry("[系统] 历史配置加载成功", 0);
+                        // ===== 关键：加载后，按时间倒序排序（最新的记录在列表最前面） =====
+                        var sortedHistoryList = historyRoot.HistoryList
+                            .OrderByDescending(item => item.SavedTime)
+                            .ToList();
+
+                        // 绑定倒序后的列表到UI
+                        Dispatcher.Invoke(() =>
+                        {
+                            lbHistory.ItemsSource = sortedHistoryList;
+                        });
+
+                        AddLogEntry("[系统] 历史配置加载成功（最新记录在前）", 0);
                     }
                 }
             }
@@ -1495,24 +1852,60 @@ namespace Nine.Design.PollingTool
         {
             try
             {
-                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PollingHistory.config");
-                var historyData = new Dictionary<string, string>
+                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "history.json");
+                HistoryRoot historyRoot = new HistoryRoot();
+
+                if (File.Exists(historyPath))
                 {
-                    { "Endpoint", txtEndpoint.Text },
-                    { "MachineCount", txtMachineCount.Value.ToString() },
-                    { "MaxRequestsPerSecond", txtPollInterval.Value.ToString() },
-                    { "HttpMethod", _selectedHttpMethod.Method },
-                    { "ParametersJson", txtParametersJson.Text }
+                    string existingContent = ReadFileContentWithRetry(historyPath);
+                    historyRoot = JsonConvert.DeserializeObject<HistoryRoot>(existingContent) ?? new HistoryRoot();
+                }
+
+                // 构建新记录
+                HistoryItem newHistoryItem = new HistoryItem
+                {
+                    Endpoint = txtEndpoint.Text,
+                    MachineCount = txtMachineCount.Value?.ToString() ?? "1",
+                    PollInterval = txtPollInterval.Value?.ToString() ?? "1",
+                    ParametersJson = txtParametersJson.Text,
+                    HttpMethod = _selectedHttpMethod.Method,
+                    TestMode = _currentTestMode.ToString(),
+                    RequestConfigValue = _requestConfigValue.ToString(),
+                    SavedTime = DateTime.Now
                 };
 
-                string content = JsonConvert.SerializeObject(historyData, Formatting.Indented);
+                // 追加新记录
+                historyRoot.HistoryList.Add(newHistoryItem);
+
+                // 限制最大记录数
+                const int maxHistoryCount = 10;
+                if (historyRoot.HistoryList.Count > maxHistoryCount)
+                {
+                    historyRoot.HistoryList.RemoveRange(0, historyRoot.HistoryList.Count - maxHistoryCount);
+                }
+
+                // ===== 关键：保存前，按时间倒序排序（最新的记录在列表最前面） =====
+                historyRoot.HistoryList = historyRoot.HistoryList
+                    .OrderByDescending(item => item.SavedTime)
+                    .ToList();
+
+                // 序列化并写入文件
+                string content = JsonConvert.SerializeObject(historyRoot, Formatting.Indented);
                 using (var fs = new FileStream(historyPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (var sw = new StreamWriter(fs, Encoding.UTF8))
                 {
                     sw.Write(content);
                     sw.Flush();
                 }
-                AddLogEntry("[系统] 当前配置已保存到历史记录", 0);
+
+                // ===== 额外：更新列表UI，确保列表也显示为倒序 =====
+                Dispatcher.Invoke(() =>
+                {
+                    lbHistory.ItemsSource = null; // 先清空列表绑定
+                    lbHistory.ItemsSource = historyRoot.HistoryList; // 重新绑定倒序后的列表
+                });
+
+                AddLogEntry("[系统] 当前配置已保存到历史记录（追加新条目，最新在前）", 0);
             }
             catch (Exception ex)
             {
@@ -1555,16 +1948,103 @@ namespace Nine.Design.PollingTool
             });
         }
 
+        /// <summary>
+        /// 历史记录列表选中项变更事件（加载选中的历史记录到界面，适配下拉框）
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void LbHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // 确保在UI线程执行，避免跨线程访问控件异常
             Dispatcher.Invoke(() =>
             {
+                // 1. 判断是否选中了有效历史项
                 if (lbHistory.SelectedItem is HistoryItem selectedItem)
                 {
-                    txtEndpoint.Text = selectedItem.Endpoint;
-                    txtMachineCount.Value = Convert.ToDouble(selectedItem.MachineCount);
-                    txtPollInterval.Value = Convert.ToDouble(selectedItem.PollInterval);
-                    txtParametersJson.Text = selectedItem.ParametersJson;
+                    // ===== 步骤1：基础输入框赋值（兼容空值，避免转换报错） =====
+                    txtEndpoint.Text = selectedItem.Endpoint ?? string.Empty;
+
+                    // 机器数赋值（容错处理）
+                    if (!string.IsNullOrWhiteSpace(selectedItem.MachineCount) && double.TryParse(selectedItem.MachineCount, out double machineCount))
+                    {
+                        txtMachineCount.Value = machineCount;
+                    }
+                    else
+                    {
+                        txtMachineCount.Value = 1;
+                    }
+
+                    // 配置值（间隔/频率）赋值（容错处理）
+                    if (!string.IsNullOrWhiteSpace(selectedItem.PollInterval) && double.TryParse(selectedItem.PollInterval, out double pollInterval))
+                    {
+                        txtPollInterval.Value = pollInterval;
+                    }
+                    else
+                    {
+                        txtPollInterval.Value = 1;
+                    }
+
+                    // 请求参数赋值
+                    txtParametersJson.Text = selectedItem.ParametersJson ?? string.Empty;
+
+                    // ===== 步骤2：恢复Http请求方法下拉框（cboHttpMethod） =====
+                    string httpMethod = selectedItem.HttpMethod ?? "GET";
+                    bool isHttpMethodMatched = false;
+
+                    // 遍历下拉框选项，匹配历史记录的请求方法
+                    foreach (ComboBoxItem item in cboHttpMethod.Items)
+                    {
+                        string itemTag = item.Tag?.ToString() ?? "";
+                        if (string.Equals(itemTag, httpMethod, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cboHttpMethod.SelectedItem = item;
+                            // 更新全局变量，确保后续请求方法正确
+                            _selectedHttpMethod = itemTag.ToUpper() == "GET" ? HttpMethod.Get : HttpMethod.Post;
+                            isHttpMethodMatched = true;
+                            break;
+                        }
+                    }
+
+                    // 未匹配到有效方法，默认选中GET（兜底容错）
+                    if (!isHttpMethodMatched)
+                    {
+                        cboHttpMethod.SelectedIndex = 0;
+                        _selectedHttpMethod = HttpMethod.Get;
+                    }
+
+                    // ===== 步骤3：恢复测试模式下拉框（cboTestMode） =====
+                    string testMode = selectedItem.TestMode ?? "HighFrequency";
+                    bool isModeMatched = false;
+
+                    foreach (ComboBoxItem item in cboTestMode.Items)
+                    {
+                        string itemTag = item.Tag?.ToString() ?? "";
+                        if (string.Equals(itemTag, testMode, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cboTestMode.SelectedItem = item;
+                            // 主动触发模式切换事件，更新配置描述和请求间隔
+                            CboTestMode_SelectionChanged(cboTestMode, null);
+                            isModeMatched = true;
+                            break;
+                        }
+                    }
+
+                    // 未匹配到有效模式，默认选中高频压测（兜底容错）
+                    if (!isModeMatched)
+                    {
+                        cboTestMode.SelectedIndex = 0;
+                        CboTestMode_SelectionChanged(cboTestMode, null);
+                    }
+
+                    // ===== 步骤4：额外更新请求配置值（确保逻辑一致） =====
+                    if (!string.IsNullOrWhiteSpace(selectedItem.RequestConfigValue) && int.TryParse(selectedItem.RequestConfigValue, out int configValue))
+                    {
+                        _requestConfigValue = configValue;
+                        UpdateRequestConfigFromInput();
+                    }
+
+                    // ===== 步骤5：输出日志，记录加载结果 =====
+                    AddLogEntry($"[系统] 已加载选中的历史记录：{selectedItem.Endpoint}（请求方法：{_selectedHttpMethod.Method}）", 0);
                 }
             });
         }
@@ -1610,34 +2090,379 @@ namespace Nine.Design.PollingTool
         }
         #endregion
 
-        #region 已移除的字段（兼容旧代码，标记为过时）
-        [Obsolete("重构后已移除，使用_globalLogQueue替代")]
-        private Dictionary<int, ConcurrentQueue<string>> _machineLogCaches = new Dictionary<int, ConcurrentQueue<string>>();
-        #endregion
-    }
+        /// <summary>
+        /// 独立按钮：删除当前 ListBox 选中的历史记录（通过 Guid 精准匹配）
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BtnDeleteSelectedHistory_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. 第一步：判断 ListBox 是否有选中项（避免空操作报错）
+                if (lbHistory.SelectedItem == null || !(lbHistory.SelectedItem is HistoryItem selectedItemToDelete))
+                {
+                    AddLogEntry("[系统] 未选中任何要删除的历史记录", 0, true);
+                    MessageBox.Show("请先在列表中选中一条要删除的历史记录！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
 
-    /// <summary>
-    /// 日志条目模型（新增：带机器标记）
-    /// </summary>
-    public class LogEntry
-    {
-        public string Message { get; set; }
-        public int MachineId { get; set; }
-        public bool IsError { get; set; }
-        public DateTime Timestamp { get; set; }
-    }
+                // 2. 第二步：弹出确认框，防止误删（推荐保留，提升安全性）
+                // 显示自定义名称（如果有）+ 接口地址，更直观
+                string recordInfo = string.IsNullOrEmpty(selectedItemToDelete.CustomName)
+                    ? selectedItemToDelete.Endpoint
+                    : $"{selectedItemToDelete.CustomName}（{selectedItemToDelete.Endpoint}）";
+                var confirmResult = MessageBox.Show($"确定要删除这条历史记录吗？\n{recordInfo}", "确认删除",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (confirmResult != MessageBoxResult.Yes)
+                {
+                    return; // 用户取消删除，直接返回
+                }
 
-    //// 补充缺失的模型类（避免编译报错）
-    //public class MachineDataModel { }
-    //public class HistoryData
-    //{
-    //    public List<HistoryItem> Items { get; set; } = new List<HistoryItem>();
-    //}
-    //public class HistoryItem
-    //{
-    //    public string Endpoint { get; set; }
-    //    public int MachineCount { get; set; }
-    //    public int PollInterval { get; set; }
-    //    public string ParametersJson { get; set; }
-    //}
+                // 3. 第三步：读取磁盘中的 history.json 历史文件
+                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "history.json");
+                HistoryRoot historyRoot = new HistoryRoot(); // 初始化空的历史记录容器
+
+                if (File.Exists(historyPath))
+                {
+                    // 读取文件内容并反序列化
+                    string existingContent = ReadFileContentWithRetry(historyPath);
+                    if (!string.IsNullOrWhiteSpace(existingContent))
+                    {
+                        historyRoot = JsonConvert.DeserializeObject<HistoryRoot>(existingContent) ?? new HistoryRoot();
+                    }
+                }
+
+                // 4. 第四步：通过 Guid（Id）精准查找并移除要删除的记录（解决引用不匹配问题）
+                // 查找匹配 Id 的记录
+                HistoryItem itemToRemove = historyRoot.HistoryList.FirstOrDefault(item => item.Id == selectedItemToDelete.Id) as HistoryItem;
+                if (itemToRemove == null)
+                {
+                    AddLogEntry($"[系统] 删除失败：未在历史文件中找到该记录（Id：{selectedItemToDelete.Id}）", 0, true);
+                    MessageBox.Show("删除失败，未在历史文件中找到该条记录！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // 移除找到的记录
+                historyRoot.HistoryList.Remove(itemToRemove);
+
+                // 5. 第五步：将更新后的历史列表覆盖写入磁盘（同步文件）
+                string updatedHistoryContent = JsonConvert.SerializeObject(historyRoot, Formatting.Indented);
+                using (var fileStream = new FileStream(historyPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var streamWriter = new StreamWriter(fileStream, Encoding.UTF8))
+                {
+                    streamWriter.Write(updatedHistoryContent);
+                    streamWriter.Flush();
+                }
+
+                // 6. 第六步：刷新 ListBox 界面（倒序排列，最新在前，清除选中状态）
+                Dispatcher.Invoke(() =>
+                {
+                    // 对更新后的列表倒序排序（保持最新记录在前面）
+                    var sortedUpdatedList = historyRoot.HistoryList
+                        .OrderByDescending(item => item.SavedTime)
+                        .ToList();
+
+                    // 刷新 ListBox 绑定（先清空再绑定，避免 WPF 刷新异常）
+                    lbHistory.ItemsSource = null;
+                    lbHistory.ItemsSource = sortedUpdatedList;
+
+                    // 清除选中状态（删除后无选中项，界面更整洁）
+                    lbHistory.SelectedItem = null;
+                });
+
+                // 7. 第七步：输出日志并提示删除成功
+                AddLogEntry($"[系统] 已成功删除选中的历史记录（Id：{selectedItemToDelete.Id}）", 0);
+                MessageBox.Show("历史记录删除成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                // 捕获所有异常，避免程序崩溃
+                AddLogEntry($"[系统] 删除选中历史记录失败：{ex.Message}", 0, true);
+                MessageBox.Show($"删除失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 编辑按钮点击：显示 Popup 编辑面板，填充所有字段数据
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        /// <summary>
+        /// 编辑按钮点击：显示 Popup 编辑面板，填充所有字段数据，重置居中位置
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BtnEditSelectedHistory_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. 判断是否有选中项
+            if (lbHistory.SelectedItem == null || !(lbHistory.SelectedItem is HistoryItem selectedItemToEdit))
+            {
+                AddLogEntry("[系统] 未选中任何要编辑的历史记录", 0, true);
+                MessageBox.Show("请先在列表中选中一条要编辑的历史记录！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // 2. 存储当前要编辑的记录（供 Popup 按钮使用）
+            _currentEditingItem = selectedItemToEdit;
+
+            // 3. 填充 Popup 中所有字段的数据（一一对应）
+            // （原有填充逻辑不变，此处省略，保留你之前的代码）
+            txtPopupCustomName.Text = selectedItemToEdit.CustomName;
+            txtPopupEndpoint.Text = selectedItemToEdit.Endpoint;
+            if (int.TryParse(selectedItemToEdit.MachineCount, out int machineCount))
+            {
+                txtPopupMachineCount.Value = machineCount;
+            }
+            else
+            {
+                txtPopupMachineCount.Value = 1;
+            }
+            foreach (ComboBoxItem item in cboPopuTestMode.Items)
+            {
+                if (item.Tag.ToString() == selectedItemToEdit.TestMode)
+                {
+                    cboPopuTestMode.SelectedItem = item;
+                    break;
+                }
+            }
+            if (int.TryParse(selectedItemToEdit.PollInterval, out int pollInterval))
+            {
+                txtPopuPollInterval.Value = pollInterval;
+            }
+            else
+            {
+                txtPopuPollInterval.Value = 1;
+            }
+            txtPopuParametersJson.Text = selectedItemToEdit.ParametersJson;
+
+            // 4. 重置 Popup 偏移量为 0，确保每次打开都在主窗体正中间
+            editHistoryPopup.HorizontalOffset = 0;
+            editHistoryPopup.VerticalOffset = 0;
+
+            // 5. 显示 Popup 编辑面板（恢复 StaysOpen 为 false，支持失去焦点隐藏）
+            editHistoryPopup.StaysOpen = false;
+            editHistoryPopup.IsOpen = true;
+        }
+
+        /// <summary>
+        /// Popup 确定按钮：保存所有字段的编辑内容，更新历史记录
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BtnPopupConfirm_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. 判断当前编辑项是否有效
+                if (_currentEditingItem == null)
+                {
+                    MessageBox.Show("编辑失败，未获取到要修改的记录！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    editHistoryPopup.IsOpen = false;
+                    return;
+                }
+
+                // 2. 从 Popup 控件中获取所有修改后的值
+                // 2.1 自定义名称
+                string newCustomName = txtPopupCustomName.Text.Trim();
+
+                // 2.2 接口地址
+                string newEndpoint = txtPopupEndpoint.Text.Trim();
+
+                // 2.3 机器数量（NumberInput 取值，转换为字符串）
+                double newMachineCount = txtPopupMachineCount.Value ?? 1;
+                string newMachineCountStr = newMachineCount.ToString();
+
+                // 2.4 测试模式（ComboBox 获取选中项的 Tag）
+                string newTestMode = string.Empty;
+                if (cboPopuTestMode.SelectedItem is ComboBoxItem selectedTestModeItem)
+                {
+                    newTestMode = selectedTestModeItem.Tag.ToString();
+                }
+
+                // 2.5 频率设置（NumberInput 取值，转换为字符串）
+                double newPollInterval = txtPopuPollInterval.Value ?? 1;
+                string newPollIntervalStr = newPollInterval.ToString();
+
+                // 2.6 JSON 参数
+                string newParametersJson = txtPopuParametersJson.Text.Trim();
+
+                // 3. 读取历史文件
+                string historyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "history.json");
+                HistoryRoot historyRoot = new HistoryRoot();
+
+                if (File.Exists(historyPath))
+                {
+                    string existingContent = ReadFileContentWithRetry(historyPath);
+                    if (!string.IsNullOrWhiteSpace(existingContent))
+                    {
+                        historyRoot = JsonConvert.DeserializeObject<HistoryRoot>(existingContent) ?? new HistoryRoot();
+                    }
+                }
+
+                // 4. 通过 Guid 查找并更新记录
+                HistoryItem itemToUpdate = historyRoot.HistoryList.FirstOrDefault(item => item.Id == _currentEditingItem.Id);
+                if (itemToUpdate == null)
+                {
+                    AddLogEntry($"[系统] 编辑失败：未在历史文件中找到该记录（Id：{_currentEditingItem.Id}）", 0, true);
+                    MessageBox.Show("编辑失败，未在历史文件中找到该条记录！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    editHistoryPopup.IsOpen = false;
+                    return;
+                }
+
+                // 5. 更新所有字段的值（覆盖原有数据）
+                itemToUpdate.CustomName = newCustomName;
+                itemToUpdate.Endpoint = newEndpoint;
+                itemToUpdate.MachineCount = newMachineCountStr;
+                itemToUpdate.TestMode = newTestMode;
+                itemToUpdate.PollInterval = newPollIntervalStr;
+                itemToUpdate.ParametersJson = newParametersJson;
+                // 可选：更新最后编辑时间（如果你的 HistoryItem 新增了 LastEditTime 字段）
+                // itemToUpdate.LastEditTime = DateTime.Now;
+
+                // 6. 覆盖写入历史文件
+                string updatedHistoryContent = JsonConvert.SerializeObject(historyRoot, Formatting.Indented);
+                using (var fileStream = new FileStream(historyPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var streamWriter = new StreamWriter(fileStream, Encoding.UTF8))
+                {
+                    streamWriter.Write(updatedHistoryContent);
+                    streamWriter.Flush();
+                }
+
+                // 7. 刷新 ListBox 并隐藏 Popup
+                Dispatcher.Invoke(() =>
+                {
+                    var sortedUpdatedList = historyRoot.HistoryList
+                        .OrderByDescending(item => item.SavedTime)
+                        .ToList();
+
+                    lbHistory.ItemsSource = null;
+                    lbHistory.ItemsSource = sortedUpdatedList;
+
+                    // 保持选中该记录，让用户看到修改后的结果
+                    lbHistory.SelectedItem = itemToUpdate;
+                });
+
+                // 8. 提示成功并隐藏 Popup
+                AddLogEntry($"[系统] 已成功编辑历史记录（Id：{_currentEditingItem.Id}）", 0);
+                MessageBox.Show("所有字段已编辑成功并保存！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                editHistoryPopup.IsOpen = false;
+                editHistoryPopup.StaysOpen = false;
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry($"[系统] 编辑选中历史记录失败：{ex.Message}", 0, true);
+                MessageBox.Show($"编辑失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                editHistoryPopup.IsOpen = false;
+            }
+        }
+        /// <summary>
+        /// Popup 取消按钮：放弃编辑，隐藏 Popup
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BtnPopupCancel_Click(object sender, RoutedEventArgs e)
+        {
+            // 隐藏 Popup，清空临时变量，避免残留数据影响下次编辑
+            editHistoryPopup.IsOpen = false;
+            _currentEditingItem = null;
+            AddLogEntry("[系统] 用户取消编辑历史记录", 0);
+            editHistoryPopup.StaysOpen = false; // 恢复默认状态
+
+        }
+
+        /// <summary>
+        /// Popup 拖动功能：无事件绑定，无报错，通过 Dispatcher 实现拖动
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void EditHistoryPopup_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 1. 确保 Popup 处于打开状态
+            if (!editHistoryPopup.IsOpen)
+            {
+                return;
+            }
+
+            // 2. 记录当前鼠标位置和 Popup 偏移量（局部变量）
+            Point mouseStartPos = e.GetPosition(this); // 相对于主窗体的鼠标起始位置
+            double popupStartHorizontalOffset = editHistoryPopup.HorizontalOffset;
+            double popupStartVerticalOffset = editHistoryPopup.VerticalOffset;
+
+            // 3. 捕获鼠标，开启拖动模式
+            bool isDragging = true;
+            Mouse.Capture(editHistoryPopup);
+
+            // 4. 通过 Dispatcher 循环跟踪鼠标移动，实现拖动（无事件绑定）
+            Action dragLoop = null;
+            dragLoop = () =>
+            {
+                if (!isDragging)
+                {
+                    return;
+                }
+
+                // 5. 判断鼠标左键是否保持按下状态
+                if (Mouse.LeftButton == MouseButtonState.Pressed)
+                {
+                    // 计算当前鼠标位置，更新 Popup 偏移量
+                    Point mouseCurrentPos = Mouse.GetPosition(this);
+                    editHistoryPopup.HorizontalOffset = popupStartHorizontalOffset + (mouseCurrentPos.X - mouseStartPos.X);
+                    editHistoryPopup.VerticalOffset = popupStartVerticalOffset + (mouseCurrentPos.Y - mouseStartPos.Y);
+
+                    // 6. 继续循环跟踪鼠标移动（保持拖动）
+                    Dispatcher.BeginInvoke(DispatcherPriority.Input, dragLoop);
+                }
+                else
+                {
+                    // 7. 鼠标左键松开，结束拖动
+                    isDragging = false;
+                    Mouse.Capture(null); // 释放鼠标捕获
+                    editHistoryPopup.StaysOpen = false; // 恢复失去焦点隐藏状态
+                }
+            };
+
+            // 8. 启动拖动循环
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, dragLoop);
+
+            // 9. 点击 Popup 时，保持置顶
+            editHistoryPopup.StaysOpen = true;
+            e.Handled = true;
+        }
+
+        private async void btnSave_Click(object sender, RoutedEventArgs e)
+        {
+            await Dispatcher.InvokeAsync(async () =>
+            {
+                SaveHistory();
+            });
+        }
+
+        private void btnClean_Click(object sender, RoutedEventArgs e)
+        {
+            ClearMainFormInputs();
+
+        }
+        /// <summary>
+        /// 公共方法：清空主界面所有输入控件的值（无默认选择，纯清空）
+        /// 可被「清空按钮」「重新加载历史」等场景复用
+        /// </summary>
+        private void ClearMainFormInputs()
+        {
+            // 2. 接口地址输入框（你的原有控件）
+            txtEndpoint.Text = string.Empty;
+
+            // 3. 机器数量 NumberInput（重置为默认值空，而非1，无默认选择）
+            txtMachineCount.Value = 1; // 清空值，不默认填充1，保持输入框水印提示
+
+            cboTestMode.SelectedIndex = -1; //
+            cboTestMode.Text = string.Empty; // 
+
+            // 5. 频率设置 NumberInput（重置为默认值空，无默认选择）
+            txtPollInterval.Value = 1;
+
+            // 6. JSON 参数输入框
+            txtParametersJson.Text = string.Empty;
+        }
+    }
 }
