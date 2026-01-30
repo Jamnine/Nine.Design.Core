@@ -5,6 +5,33 @@ using System.ComponentModel;
 
 namespace Nine.Design.PollingTool
 {
+    /// <summary>
+    /// 固定日志类型枚举（保留标识，不与动态机器ID冲突）
+    /// </summary>
+    public enum FixedLogType
+    {
+        /// <summary>
+        /// 全部日志（默认）
+        /// </summary>
+        All = 0,
+
+        /// <summary>
+        /// 硬件监控日志（CPU、内存等，固定标识）
+        /// </summary>
+        HardwareMonitor = 1,
+
+        /// <summary>
+        /// 系统日志（程序启动、配置变更等，固定标识）
+        /// </summary>
+        System = 2,
+
+        /// <summary>
+        /// 业务机器日志（动态机器请求，后续过滤可排除）
+        /// </summary>
+        BusinessMachine = 3
+    }
+
+
     public enum TestMode
     {
         HighFrequency,  // 高频压测模式（一秒几次）
@@ -12,7 +39,7 @@ namespace Nine.Design.PollingTool
     }
 
     /// <summary>
-    /// 日志条目模型（新增：带机器标记）
+    /// 日志条目类（扩展：新增固定日志类型）
     /// </summary>
     public class LogEntry
     {
@@ -20,8 +47,13 @@ namespace Nine.Design.PollingTool
         public int MachineId { get; set; }
         public bool IsError { get; set; }
         public DateTime Timestamp { get; set; }
+
+        /// <summary>
+        /// 新增：固定日志类型（用于过滤：硬件、系统、业务）
+        /// </summary>
+        public FixedLogType LogType { get; set; }
     }
-    
+
     public class HistoryItem
     {
         // 1. 新增：唯一标识（Guid），用于精准匹配删除/编辑，保存时自动生成

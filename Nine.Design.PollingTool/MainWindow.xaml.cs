@@ -18,6 +18,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using static HardwareMonitorHelper;
 
 namespace Nine.Design.PollingTool
 {
@@ -31,6 +32,8 @@ namespace Nine.Design.PollingTool
         private MachineDataModel _currentDisplayData = new MachineDataModel(); // 当前显示的统计数据（全部/指定机器）
         private HttpMethod _selectedHttpMethod = HttpMethod.Post;
         private CancellationTokenSource _cts;
+        private CancellationTokenSource _hardwarePollingCts; // 硬件轮询专属Cts（新增）
+        private bool _isHardwarePolling = false; // 硬件轮询标记（新增）
         private List<Task> _pollingTasks = new List<Task>();
         private HttpClient _httpClient;
         private bool _isPolling = false;
@@ -44,6 +47,7 @@ namespace Nine.Design.PollingTool
             Brushes.Black, Brushes.DarkBlue, Brushes.DarkGreen, Brushes.DarkRed,
             Brushes.DarkOrange, Brushes.Purple, Brushes.Teal, Brushes.Maroon
         };
+        private FixedLogType _currentSelectedFixedLogType = FixedLogType.All;
         private int _requestTimeoutSeconds = 10;
         private string _tempLogFilePath;
         private string _logDirectory;
@@ -122,11 +126,21 @@ namespace Nine.Design.PollingTool
                 LoadHistory();
                 AddLogEntry("[系统] 程序启动，实时统计面板已启用", 0);
                 AddLogEntry($"[系统] 默认请求间隔：{_requestIntervalSeconds}秒/次 | 端口上限：{_maxPortUsage}", 0);
+                StartHardwarePollingAsync(5000);
+
             };
 
             Closing += MainWindow_Closing;
         }
-
+        /// <summary>
+        /// 独立的异步方法：启动硬件轮询（允许async void，作为事件后续逻辑）
+        /// </summary>
+        /// <param name="pollIntervalMs">轮询间隔</param>
+        private async void StartHardwarePollingAsync(int pollIntervalMs)
+        {
+            // 直接调用原有异步轮询方法，此处可await
+            await StartHardwarePolling(pollIntervalMs);
+        }
         /// <summary>
         /// 测试模式切换事件（核心：切换模式并更新逻辑）
         /// </summary>
@@ -194,7 +208,7 @@ namespace Nine.Design.PollingTool
                 if (Environment.Version.Major >= 3)
                 {
                     ServicePointManager.ReusePort = true;
-                    AddLogEntry("[系统] TCP端口重用已启用", 0);
+                    AddLogEntry("[系统] TCP端口重用已启用", 0, false, FixedLogType.System);
                 }
 
                 try
@@ -240,7 +254,7 @@ namespace Nine.Design.PollingTool
                     Timeout = TimeSpan.FromSeconds(_requestTimeoutSeconds)
                 };
 
-                AddLogEntry("[系统] HttpClient初始化完成（连接池大小：1000，已启用SSL证书忽略）", 0);
+                AddLogEntry("[系统] HttpClient初始化完成（连接池大小：1000，已启用SSL证书忽略）", 0, false, FixedLogType.System);
             }
             catch (Exception ex)
             {
@@ -295,10 +309,11 @@ namespace Nine.Design.PollingTool
 
         private void InitializeLogUiTimer()
         {
-            _logUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            // 优化：将间隔从100ms改为50ms，提高日志刷新速度，避免积压
+            _logUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
             _logUiTimer.Tick += LogUiTimer_Tick;
             _logUiTimer.Start();
-            AddLogEntry($"[系统] 日志UI定时器已启动，间隔：{_logUiTimer.Interval.TotalMilliseconds}ms", 0);
+            AddLogEntry("[系统] 日志UI定时器已启动，间隔：{_logUiTimer.Interval.TotalMilliseconds}ms", 0, false, FixedLogType.System);
         }
 
         private void RegisterGlobalExceptionHandlers()
@@ -414,13 +429,19 @@ namespace Nine.Design.PollingTool
         /// <summary>
         /// 重构：更新全局日志UI，支持机器过滤
         /// </summary>
+        /// <summary>
+        /// 重构：更新全局日志UI，支持机器过滤（优化：避免重复清空列表，提高性能）
+        /// </summary>
+        /// <summary>
+        /// 重构：更新全局日志UI，支持固定日志类型+机器ID双重过滤（核心修改）
+        /// </summary>
         private void UpdateGlobalLogUI()
         {
             if (_globalLogQueue.IsEmpty) return;
 
             // 1. 出队新日志，加入过滤列表
             List<LogEntry> newLogs = new List<LogEntry>();
-            int maxBatchSize = 100;
+            int maxBatchSize = 200; // 每次最多处理200条日志，避免UI卡死
             int count = 0;
 
             LogEntry logEntry;
@@ -431,18 +452,28 @@ namespace Nine.Design.PollingTool
                 count++;
             }
 
-            // 2. 过滤日志（根据当前选中的机器ID）
+            // 2. 过滤日志（核心修改：先过滤固定日志类型，再过滤机器ID）
             List<LogEntry> logsToDisplay = new List<LogEntry>();
-            if (_currentFilterMachineId == 0)
+
+            // 第一步：过滤固定日志类型
+            if (_currentSelectedFixedLogType == FixedLogType.All)
             {
+                // 全部类型：保留所有日志
                 logsToDisplay = _filteredLogList.ToList();
             }
             else
             {
-                logsToDisplay = _filteredLogList.Where(l => l.MachineId == _currentFilterMachineId).ToList();
+                // 指定类型：只保留对应固定类型的日志
+                logsToDisplay = _filteredLogList.Where(l => l.LogType == _currentSelectedFixedLogType).ToList();
             }
 
-            // 3. 更新UI（先清空原有，再添加过滤后的日志，避免重复）
+            // 第二步：过滤机器ID（在固定类型过滤的基础上，再过滤机器）
+            if (_currentFilterMachineId != 0)
+            {
+                logsToDisplay = logsToDisplay.Where(l => l.MachineId == _currentFilterMachineId).ToList();
+            }
+
+            // 3. 更新UI（原有逻辑不变，仅使用过滤后的logsToDisplay）
             Dispatcher.Invoke(() =>
             {
                 // 限制日志最大数量，防止内存溢出
@@ -450,42 +481,77 @@ namespace Nine.Design.PollingTool
                 {
                     int removeCount = _filteredLogList.Count - 50000;
                     _filteredLogList.RemoveRange(0, removeCount);
+                    // 清空列表，重新添加（超过最大数量时才清空，平时只追加）
+                    lbGlobalLogs.Items.Clear();
                 }
 
-                // 清空当前日志列表，重新添加过滤后的日志
-                lbGlobalLogs.Items.Clear();
-                foreach (var log in logsToDisplay)
+                // 优化：只添加新日志，不重复添加全部
+                if (newLogs.Count > 0 && lbGlobalLogs.Items.Count == 0)
                 {
-                    ListBoxItem logItem = new ListBoxItem
+                    // 列表为空时，添加所有过滤后的日志
+                    foreach (var log in logsToDisplay)
                     {
-                        Content = log.Message,
-                        Padding = new Thickness(2)
-                    };
-
-                    if (log.IsError)
-                    {
-                        logItem.Foreground = Brushes.Red;
-                        logItem.FontWeight = FontWeights.Bold;
+                        AddLogItemToUI(log);
                     }
-                    else if (log.MachineId > 0)
+                }
+                else if (newLogs.Count > 0)
+                {
+                    // 列表不为空时，只添加新出队的日志（先过滤新日志，再添加）
+                    var newLogsToDisplay = new List<LogEntry>();
+                    if (_currentSelectedFixedLogType == FixedLogType.All)
                     {
-                        int colorIndex = (log.MachineId - 1) % _logBrushes.Count;
-                        logItem.Foreground = _logBrushes[colorIndex];
+                        newLogsToDisplay = newLogs;
                     }
                     else
                     {
-                        logItem.Foreground = Brushes.DarkGray;
+                        newLogsToDisplay = newLogs.Where(l => l.LogType == _currentSelectedFixedLogType).ToList();
+                    }
+                    if (_currentFilterMachineId != 0)
+                    {
+                        newLogsToDisplay = newLogsToDisplay.Where(l => l.MachineId == _currentFilterMachineId).ToList();
                     }
 
-                    lbGlobalLogs.Items.Add(logItem);
+                    foreach (var log in newLogsToDisplay)
+                    {
+                        AddLogItemToUI(log);
+                    }
                 }
 
-                // 滚动到最新日志
-                if (lbGlobalLogs.Items.Count > 0)
+                // 滚动到最新日志（优化：只有新日志时才滚动，避免频繁滚动）
+                if (newLogs.Count > 0 && lbGlobalLogs.Items.Count > 0)
                 {
                     lbGlobalLogs.ScrollIntoView(lbGlobalLogs.Items[lbGlobalLogs.Items.Count - 1]);
                 }
             });
+        }
+        /// <summary>
+        /// 辅助方法：添加单条日志到UI，避免重复代码
+        /// </summary>
+        /// <param name="log">日志条目</param>
+        private void AddLogItemToUI(LogEntry log)
+        {
+            ListBoxItem logItem = new ListBoxItem
+            {
+                Content = log.Message,
+                Padding = new Thickness(2)
+            };
+
+            if (log.IsError)
+            {
+                logItem.Foreground = Brushes.Red;
+                logItem.FontWeight = FontWeights.Bold;
+            }
+            else if (log.MachineId > 0)
+            {
+                int colorIndex = (log.MachineId - 1) % _logBrushes.Count;
+                logItem.Foreground = _logBrushes[colorIndex];
+            }
+            else
+            {
+                logItem.Foreground = Brushes.DarkGray;
+            }
+
+            lbGlobalLogs.Items.Add(logItem);
         }
         #endregion
 
@@ -517,54 +583,70 @@ namespace Nine.Design.PollingTool
         /// </summary>
         private void UpdateMachineFilterButtons()
         {
+            // 确保在UI线程执行（Dispatcher.Invoke 保留，避免跨线程异常）
             Dispatcher.Invoke(() =>
             {
                 try
                 {
-                    // 1. 获取当前机器数量
+                    // 1. 获取当前机器数量（保留原有逻辑，增加容错）
                     int machineCount = 1;
                     if (txtMachineCount.Value.HasValue && txtMachineCount.Value.Value > 0)
                     {
                         machineCount = (int)txtMachineCount.Value.Value;
                     }
 
-                    // 2. 清空原有机器按钮（保留「全部日志」按钮）
-                    var machineButtons = spMachineFilterButtons.Children.OfType<Button>().Where(b => b.Name != "btnAllLogs").ToList();
+                    // 2. 清空原有机器按钮（关键修正：保留3个固定按钮，只删除动态创建的机器按钮）
+                    // 筛选条件：排除3个固定按钮（btnAllLogs、btnHardwareLogs、btnSystemLogs），其余都是动态机器按钮
+                    var machineButtons = spMachineFilterButtons.Children
+                        .OfType<Button>()
+                        .Where(b => b.Name != "btnAllLogs"
+                                  && b.Name != "btnHardwareLogs"
+                                  && b.Name != "btnSystemLogs")
+                        .ToList(); // 先转List，避免遍历过程中集合变更异常
+
                     foreach (var btn in machineButtons)
                     {
+                        // 移除前解绑事件（可选，避免内存泄漏，好习惯）
+                        btn.Click -= BtnMachineFilter_Click;
                         spMachineFilterButtons.Children.Remove(btn);
                     }
 
-                    // 3. 清空原有机器数据
+                    // 3. 清空原有机器数据（保留原有逻辑）
                     _allMachineData.Clear();
 
-                    // 4. 初始化全局统计数据
+                    // 4. 初始化全局统计数据（保留原有逻辑）
                     var totalOverviewData = new MachineDataModel();
                     _allMachineData.Add(0, totalOverviewData);
                     _currentDisplayData = totalOverviewData;
 
-                    // 5. 创建机器按钮和对应数据
+                    // 5. 创建机器按钮和对应数据（保留原有逻辑，优化按钮创建）
                     for (int i = 1; i <= machineCount; i++)
                     {
                         var machineData = new MachineDataModel();
                         _allMachineData.Add(i, machineData);
 
-                        // 创建机器过滤按钮
+                        // 创建机器过滤按钮（优化：增加空值判断，避免FindResource失败）
                         Button machineBtn = new Button
                         {
                             Content = $"机器 {i}",
-                            Style = (Style)FindResource("MachineFilterButtonStyle"),
-                            Tag = i // 存储机器ID
+                            // 增加容错：如果样式找不到，不崩溃，使用默认按钮样式
+                            Style = FindResource("MachineFilterButtonStyle") as Style ?? new Style(typeof(Button)),
+                            Tag = i, // 存储机器ID，用于点击事件区分
+                                     // 明确命名（可选，方便调试）
+                            Name = $"btnMachine_{i}"
                         };
                         machineBtn.Click += BtnMachineFilter_Click;
+
+                        // 关键：将动态按钮添加到StackPanel中（保留在固定按钮之后，顺序正确）
                         spMachineFilterButtons.Children.Add(machineBtn);
                     }
 
-                    // 6. 打印日志
+                    // 6. 打印日志（保留原有逻辑，优化日志格式）
                     AddLogEntry($"[系统] 机器过滤按钮创建成功，当前机器数量: {machineCount}", 0);
                 }
                 catch (Exception ex)
                 {
+                    // 保留异常日志，方便排查
                     AddLogEntry($"[系统] 创建机器过滤按钮失败：{ex.Message}，异常堆栈：{ex.StackTrace}", 0, true);
                 }
             });
@@ -602,12 +684,13 @@ namespace Nine.Design.PollingTool
         }
 
         /// <summary>
-        /// 全部日志按钮点击事件（新增）
+        /// 全部日志按钮点击事件（修改：重置固定日志类型）
         /// </summary>
         private void BtnAllLogs_Click(object sender, EventArgs e)
         {
-            // 1. 重置过滤机器ID为0（全部）
+            // 1. 重置过滤机器ID为0（全部），重置固定日志类型为全部
             _currentFilterMachineId = 0;
+            _currentSelectedFixedLogType = FixedLogType.All;
 
             // 2. 更新按钮样式
             ResetFilterButtonStyles();
@@ -626,11 +709,11 @@ namespace Nine.Design.PollingTool
             UpdateGlobalLogUI();
             StatsUpdateTimer_Tick(null, null);
 
-            AddLogEntry("[系统] 已切换到「全部日志」和全局统计", 0);
+            AddLogEntry("[系统] 已切换到「全部日志」和全局统计", 0, false, FixedLogType.System);
         }
 
         /// <summary>
-        /// 重置过滤按钮样式（辅助方法，新增）
+        /// 重置过滤按钮样式（辅助方法，修改：包含系统日志按钮）
         /// </summary>
         private void ResetFilterButtonStyles()
         {
@@ -1740,22 +1823,26 @@ namespace Nine.Design.PollingTool
             }
         }
 
-        /// <summary>
-        /// 重构：添加带机器标记的日志条目
+        /// 重构：添加带机器标记和固定日志类型的日志条目（核心修改）
         /// </summary>
-        private void AddLogEntry(string message, int machineId = 0, bool isError = false)
+        /// <param name="message">日志内容</param>
+        /// <param name="machineId">机器ID（0=无机器）</param>
+        /// <param name="isError">是否为错误日志</param>
+        /// <param name="logType">固定日志类型（默认：业务机器日志，可指定系统/硬件）</param>
+        private void AddLogEntry(string message, int machineId = 0, bool isError = false, FixedLogType logType = FixedLogType.BusinessMachine)
         {
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             string prefix = machineId == 0 ? message : $"[机器 {machineId,2}] {message}";
             string fullMessage = $"[{timestamp}] {prefix}";
 
-            // 入队带标记的日志条目
+            // 入队带标记和固定日志类型的日志条目
             _globalLogQueue.Enqueue(new LogEntry
             {
                 Message = fullMessage,
                 MachineId = machineId,
                 IsError = isError,
-                Timestamp = DateTime.Now
+                Timestamp = DateTime.Now,
+                LogType = logType // 赋值固定日志类型，用于过滤
             });
 
             // 异步写入文件
@@ -1918,11 +2005,14 @@ namespace Nine.Design.PollingTool
             try
             {
                 _isPolling = false;
+                // 停止业务轮询
                 if (_cts != null)
                 {
                     _cts.Cancel();
                     _cts.Dispose();
                 }
+                // 停止硬件轮询（调用专属方法，操作专属Cts）
+                StopHardwarePolling();
 
                 if (_logUiTimer != null) _logUiTimer.Stop();
                 if (_portMonitorTimer != null) _portMonitorTimer.Stop();
@@ -2463,6 +2553,255 @@ namespace Nine.Design.PollingTool
 
             // 6. JSON 参数输入框
             txtParametersJson.Text = string.Empty;
+        }
+
+
+        #region 硬件轮询（独立隔离，无冲突）
+        /// <summary>
+        /// 启动硬件信息轮询（独立变量，不和业务轮询冲突）
+        /// </summary>
+        /// <param name="pollIntervalMs">轮询间隔（毫秒，默认2000ms=2秒，避免过频繁）</param>
+        private async Task StartHardwarePolling(int pollIntervalMs = 2000,int full=0)
+        {
+            // 避免重复启动硬件轮询
+            if (_isHardwarePolling)
+            {
+                AddLogEntry("[系统] 硬件统计轮询已在运行中，无需重复启动！", 0, false);
+                return;
+            }
+
+            // 初始化硬件轮询专属Cts（和业务轮询隔离，无冲突）
+            _hardwarePollingCts = new CancellationTokenSource();
+            _isHardwarePolling = true;
+            CancellationToken token = _hardwarePollingCts.Token;
+
+            try
+            {
+                AddLogEntry($"[系统] 硬件统计轮询已启动，间隔：{pollIntervalMs / 1000}秒", 0, false, FixedLogType.HardwareMonitor);
+
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        // ===== 关键修改：彻底移除值元组，分步获取硬件信息（无编译错误） =====
+                        string hardwareLogInfo = string.Empty;
+                        HardwareMonitorHelper.HardwarePanelStatus hardwarePanelStatus = null;
+
+                        // 异步在后台线程获取硬件信息（不阻塞UI，兼容 .NET Framework 4.6）
+                        await Task.Run(() =>
+                        {
+                            // 1. 获取用于日志输出的完整硬件信息 显示整个硬件信息，可用，显示太占日志空间，不打开
+                            if (full > 0)
+                            {
+                                hardwareLogInfo = HardwareMonitorHelper.GetFullHardwareStatisticInfo();
+                            }
+                            // 2. 获取用于UI面板的格式化数据（一键返回，无需解构）
+                            hardwarePanelStatus = HardwareMonitorHelper.GetFullHardwarePanelStatus();
+                        }, token);
+
+                        #region 显示整个硬件信息，可用，显示太占日志空间，不打开
+                        if (full > 0)
+                        {
+                            // ===== 2. 更新日志（异步非阻塞，后台优先级，无值元组） =====
+                            _ = Dispatcher.BeginInvoke(
+                                DispatcherPriority.Background,
+                                new Action(() =>
+                                {
+                                    AddLogEntry(hardwareLogInfo, 0, false);
+                                    // 可选：如果面板解析失败，输出错误日志
+                                    if (hardwarePanelStatus != null && hardwarePanelStatus.IsError)
+                                    {
+                                        AddLogEntry($"[硬件面板] 数据解析失败：{hardwarePanelStatus.ErrorMessage}", 0, true);
+                                    }
+                                })
+                            );
+                        }
+
+                        #endregion
+                        //AddLogEntry("[监控] CPU使用情况："+hardwarePanelStatus.CpuStatusText + "内存使用情况："+hardwarePanelStatus.MemoryStatusText, 0, false);
+                        // ===== 关键修改：两句独立日志（CPU 单独一句、内存 单独一句） =====
+                        _ = Dispatcher.BeginInvoke(
+                            DispatcherPriority.Background,
+                            new Action(() =>
+                            {
+                                // 1. 输出完整硬件详细日志（可选保留，如需精简可删除）
+                                //AddLogEntry(hardwareLogInfo, 0, false);
+
+                                // 初始化默认日志内容（容错备用）
+                                string cpuLog = "[监控] CPU 占用：0.0% 总量：0核/0线程";
+                                string memoryLog = "[监控] 内存 占用：0.0% 总量：0.0GB";
+
+                                if (hardwarePanelStatus != null)
+                                {
+                                    // ===== 第一句：CPU 日志（独立输出，格式：占用：xxx 总量：xxx） =====
+                                    string cpuStatus = hardwarePanelStatus.CpuStatusText ?? "0.0%/0核/0线程";
+                                    string[] cpuParts = cpuStatus.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                                    string cpuUsage = "0.0%";
+                                    string cpuTotal = "0核/0线程";
+
+                                    if (cpuParts.Length >= 1) cpuUsage = cpuParts[0];
+                                    if (cpuParts.Length >= 3) cpuTotal = $"{cpuParts[1]}/{cpuParts[2]}";
+                                    // 构建 CPU 独立日志
+                                    cpuLog = $"[监控] CPU 占用：{cpuUsage} 总量：{cpuTotal}";
+
+                                    // ===== 第二句：内存 日志（独立输出，格式：占用：xxx 总量：xxx） =====
+                                    string memoryStatus = hardwarePanelStatus.MemoryStatusText ?? "0.0%/0.0GB/0.0GB";
+                                    string[] memoryParts = memoryStatus.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                                    string memoryUsage = "0.0%";
+                                    string memoryTotal = "0.0GB";
+                                    string memoryUsage2 = "0.0GB";
+
+                                    if (memoryParts.Length >= 1) memoryUsage = memoryParts[0];
+                                    if (memoryParts.Length >= 2) memoryUsage2 = memoryParts[1];
+                                    if (memoryParts.Length >= 3) memoryTotal = memoryParts[2];
+                                    // 构建 内存 独立日志
+                                    memoryLog = $"[监控] 内存 占用：{memoryUsage} 可用：{memoryUsage2} 总量：{memoryTotal}";
+                                }
+
+                                // 2. 输出两句独立监控日志（核心需求：CPU 和 内存单独输出）
+                                AddLogEntry(cpuLog, 0, false, FixedLogType.HardwareMonitor);
+                                AddLogEntry(memoryLog, 0, false, FixedLogType.HardwareMonitor);
+
+                                // 3. 面板解析失败日志（原有容错逻辑，保留）
+                                if (hardwarePanelStatus != null && hardwarePanelStatus.IsError)
+                                {
+                                    AddLogEntry($"[硬件面板] 数据解析失败：{hardwarePanelStatus.ErrorMessage}", 0, true);
+                                }
+                            })
+                        );
+
+                        // ===== 3. 更新UI面板（异步非阻塞，正常优先级，保证实时性） =====
+                        _ = Dispatcher.BeginInvoke(
+                            DispatcherPriority.Normal,
+                            new Action(() =>
+                            {
+                                // 容错：避免硬件面板数据为null导致空引用异常
+                                if (hardwarePanelStatus != null)
+                                {
+                                    txtCPU.Text = hardwarePanelStatus.CpuStatusText;
+                                    txtMemory.Text = hardwarePanelStatus.MemoryStatusText;
+                                }
+                                else
+                                {
+                                    txtCPU.Text = "0.0%/0核/0线程";
+                                    txtMemory.Text = "0.0%/0.0GB/0.0GB";
+                                }
+                            })
+                        );
+
+                        // ===== 4. 轮询间隔等待（异步，不阻塞任何线程，兼容 .NET Framework 4.6） =====
+                        await Task.Delay(pollIntervalMs, token);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 异常处理：日志输出，延迟重试
+                        _ = Dispatcher.BeginInvoke(
+                            DispatcherPriority.Background,
+                            new Action(() =>
+                            {
+                                AddLogEntry($"[硬件监控] 单次查询/解析失败：{ex.Message}", 0, true);
+                            })
+                        );
+
+                        // 出错后延迟1秒重试，避免频繁报错积压
+                        await Task.Delay(1000, token);
+                    }
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // 正常取消：轮询被主动停止（如关闭程序）
+                _ = Dispatcher.BeginInvoke(
+                    DispatcherPriority.Background,
+                    new Action(() =>
+                    {
+                        AddLogEntry($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] 硬件统计轮询已正常停止！", 0, false);
+                    })
+                );
+            }
+            catch (Exception ex)
+            {
+                // 致命异常：轮询整体崩溃
+                _ = Dispatcher.BeginInvoke(
+                    DispatcherPriority.Background,
+                    new Action(() =>
+                    {
+                        AddLogEntry($"[系统异常] 硬件统计轮询整体异常：{ex.Message}", 0, true);
+                    })
+                );
+            }
+            finally
+            {
+                // 重置状态 + 释放资源（避免内存泄漏，兼容 .NET Framework 4.6）
+                _isHardwarePolling = false;
+                if (_hardwarePollingCts != null)
+                {
+                    _hardwarePollingCts.Dispose();
+                    _hardwarePollingCts = null;
+                }
+
+                // 可选：停止轮询后重置面板显示
+                _ = Dispatcher.BeginInvoke(
+                    DispatcherPriority.Normal,
+                    new Action(() =>
+                    {
+                        txtCPU.Text = "0.0%/0核/0线程";
+                        txtMemory.Text = "0.0GB/0.0GB/0.0GB";
+                    })
+                );
+            }
+        }
+
+        /// <summary>
+        /// 停止硬件信息轮询（只操作专属Cts，不影响业务轮询）
+        /// </summary>
+        private void StopHardwarePolling()
+        {
+            if (_hardwarePollingCts != null && !_hardwarePollingCts.IsCancellationRequested)
+            {
+                _hardwarePollingCts.Cancel();
+                _hardwarePollingCts.Dispose(); // 释放资源，避免内存泄漏
+                _hardwarePollingCts = null;
+            }
+        }
+        #endregion
+
+        /// <summary>
+        /// 硬件监控日志过滤按钮点击事件
+        /// </summary>
+        private void BtnHardwareLogs_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. 更新当前选中的固定日志类型
+            _currentSelectedFixedLogType = FixedLogType.HardwareMonitor;
+
+            // 2. 更新按钮样式（高亮当前，重置其他）
+            ResetFilterButtonStyles();
+            btnHardwareLogs.Background = (SolidColorBrush)FindResource("PrimaryColor");
+
+            // 3. 强制刷新日志UI（应用过滤）
+            UpdateGlobalLogUI();
+            StatsUpdateTimer_Tick(null, null);
+
+            AddLogEntry("[系统] 已切换到「硬件监控日志」过滤", 0, false, FixedLogType.System);
+        }
+
+        /// <summary>
+        /// 系统日志过滤按钮点击事件
+        /// </summary>
+        private void BtnSystemLogs_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. 更新当前选中的固定日志类型
+            _currentSelectedFixedLogType = FixedLogType.System;
+
+            // 2. 更新按钮样式（高亮当前，重置其他）
+            ResetFilterButtonStyles();
+            btnSystemLogs.Background = (SolidColorBrush)FindResource("PrimaryColor");
+
+            // 3. 强制刷新日志UI（应用过滤）
+            UpdateGlobalLogUI();
+            StatsUpdateTimer_Tick(null, null);
+
+            AddLogEntry("[系统] 已切换到「系统日志」过滤", 0, false, FixedLogType.System);
         }
     }
 }

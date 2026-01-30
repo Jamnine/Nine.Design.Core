@@ -1127,11 +1127,23 @@
                             x:Name="spMachineFilterButtons"
                             Margin="3,0,0,0"
                             Orientation="Horizontal">
-                            <!--  默认添加「全部日志」按钮，其他机器按钮动态生成  -->
+                            <!--  固定按钮：全部日志  -->
                             <Button
                                 x:Name="btnAllLogs"
                                 Click="BtnAllLogs_Click"
                                 Content="全部日志"
+                                Style="{StaticResource MachineFilterButtonStyle}" />
+                            <!--  固定按钮：硬件监控（专属点击事件）  -->
+                            <Button
+                                x:Name="btnHardwareLogs"
+                                Click="BtnHardwareLogs_Click"
+                                Content="硬件监控"
+                                Style="{StaticResource MachineFilterButtonStyle}" />
+                            <!--  固定按钮：系统日志（新增，专属点击事件）  -->
+                            <Button
+                                x:Name="btnSystemLogs"
+                                Click="BtnSystemLogs_Click"
+                                Content="系统日志"
                                 Style="{StaticResource MachineFilterButtonStyle}" />
                             <!--<Button
                                 x:Name="btnAllLogs"
@@ -1164,14 +1176,18 @@
                         BorderThickness="1"
                         CornerRadius="6">
                         <Grid>
+                            <!--  优化列定义：7列均分，每列最小宽度120防止挤压  -->
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
                             </Grid.ColumnDefinitions>
-                            <!--  总请求数  -->
+
+                            <!--  总请求数（原有，无修改）  -->
                             <StackPanel
                                 Grid.Column="0"
                                 HorizontalAlignment="Center"
@@ -1189,7 +1205,8 @@
                                     Foreground="{StaticResource PrimaryColor}"
                                     Text="0" />
                             </StackPanel>
-                            <!--  成功请求数  -->
+
+                            <!--  成功请求数（原有，无修改）  -->
                             <StackPanel
                                 Grid.Column="1"
                                 HorizontalAlignment="Center"
@@ -1207,7 +1224,8 @@
                                     Foreground="{StaticResource SuccessColor}"
                                     Text="0" />
                             </StackPanel>
-                            <!--  成功率  -->
+
+                            <!--  成功率（原有，无修改）  -->
                             <StackPanel
                                 Grid.Column="2"
                                 HorizontalAlignment="Center"
@@ -1225,7 +1243,8 @@
                                     Foreground="{StaticResource SecondaryColor}"
                                     Text="0.00%" />
                             </StackPanel>
-                            <!--  端口占用数  -->
+
+                            <!--  端口占用数（原有，无修改）  -->
                             <StackPanel
                                 Grid.Column="3"
                                 HorizontalAlignment="Center"
@@ -1243,7 +1262,8 @@
                                     Foreground="{StaticResource WarningColor}"
                                     Text="0/50000" />
                             </StackPanel>
-                            <!--  运行时长  -->
+
+                            <!--  运行时长（原有，无修改）  -->
                             <StackPanel
                                 Grid.Column="4"
                                 HorizontalAlignment="Center"
@@ -1260,6 +1280,46 @@
                                     FontWeight="Bold"
                                     Foreground="{StaticResource PrimaryColor}"
                                     Text="00:00:00" />
+                            </StackPanel>
+
+                            <!--  CPU 统计（新增，格式对齐原有）  -->
+                            <StackPanel
+                                Grid.Column="5"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                                    Foreground="{StaticResource TextSecondaryColor}"
+                                    Text="CPU占用/核心/线程" />
+                                <!--  初始值改为占位符，格式：占用%/核心数/逻辑数  -->
+                                <TextBlock
+                                    x:Name="txtCPU"
+                                    HorizontalAlignment="Center"
+                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=16}"
+                                    FontWeight="Bold"
+                                    Foreground="{StaticResource PrimaryColor}"
+                                    Text="0.0%/0核/0线程" />
+                            </StackPanel>
+
+                            <!--  内存统计（新增，格式对齐原有）  -->
+                            <StackPanel
+                                Grid.Column="6"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=11}"
+                                    Foreground="{StaticResource TextSecondaryColor}"
+                                    Text="内存占用/可用/总容量" />
+                                <!--  初始值改为占位符，格式：占用GB/可用GB/总量GB  -->
+                                <TextBlock
+                                    x:Name="txtMemory"
+                                    HorizontalAlignment="Center"
+                                    FontSize="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FontSize, Converter={local:ScaleConverter}, ConverterParameter=16}"
+                                    FontWeight="Bold"
+                                    Foreground="{StaticResource PrimaryColor}"
+                                    Text="0.0%/0.0GB/0.0GB" />
                             </StackPanel>
                         </Grid>
                     </Border>
