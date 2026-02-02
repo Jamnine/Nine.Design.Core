@@ -1,4 +1,4 @@
-﻿<pu:WindowX
+﻿<UserControl
     x:Class="Nine.Design.PollingTool.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -17,14 +17,11 @@
     MinHeight="600"
     pu:ScrollBarHelper.HoverThumbBackground="{DynamicResource ThemeBrush}"
     pu:ScrollBarHelper.ThumbBackground="{DynamicResource ThemeBrushTrans6}"
-    pu:WindowXCaption.Height="0"
-    ResizeMode="CanResizeWithGrip"
     SizeChanged="MetroWindow_SizeChanged"
-    WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
 
     <!--  全局样式统一：保留原有主题色 + 适配Panuon控件  -->
-    <Window.Resources>
+    <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <!--  新项目原有资源字典  -->
@@ -197,7 +194,7 @@
             <!--
             </Style>-->
         </ResourceDictionary>
-    </Window.Resources>
+    </UserControl.Resources>
 
     <!--  保留原有布局结构，移除TabControl，新增机器过滤按钮和全局日志ListBox  -->
     <Grid Background="#FAFAFA">
@@ -1360,4 +1357,4 @@
 
         </Grid>
     </Grid>
-</pu:WindowX>
+</UserControl>

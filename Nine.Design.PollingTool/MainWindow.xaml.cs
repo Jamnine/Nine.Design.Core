@@ -26,7 +26,7 @@ namespace Nine.Design.PollingTool
     /// <summary>
     /// 主窗口（重构后：单日志面板 + 机器过滤按钮）
     /// </summary>
-    public partial class MainWindow : WindowX, INotifyPropertyChanged
+    public partial class MainWindow : UserControl, INotifyPropertyChanged
     {
         // 基础配置
         private Dictionary<int, MachineDataModel> _allMachineData = new Dictionary<int, MachineDataModel>();
@@ -125,7 +125,7 @@ namespace Nine.Design.PollingTool
                 StartHardwarePollingAsync(5000);
             };
 
-            Closing += MainWindow_Closing;
+            //Closing += MainWindow_Closing;
         }
 
         /// <summary>
@@ -2048,7 +2048,7 @@ namespace Nine.Design.PollingTool
                     ? selectedItemToDelete.Endpoint
                     : $"{selectedItemToDelete.CustomName}（{selectedItemToDelete.Endpoint}）";
                 var setting = Application.Current.FindResource("CustomSetting") as MessageBoxXSetting;
-                MessageBoxX.Show(this, "你有一条新消息。", "提示", MessageBoxButton.OK, MessageBoxIcon.Info, DefaultButton.YesOK, setting, 5);
+                //MessageBoxX.Show(this, "你有一条新消息。", "提示", MessageBoxButton.OK, MessageBoxIcon.Info, DefaultButton.YesOK, setting, 5);
                 //var confirmResult = MessageBox.Show($"确定要删除这条历史记录吗？\n{recordInfo}", "确认删除",
                 //    MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 //if (confirmResult != MessageBoxResult.Yes)

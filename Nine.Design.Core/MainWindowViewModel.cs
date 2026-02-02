@@ -26,6 +26,8 @@ namespace Nine.Design.Core
         {
             Nine.Design.Clientbase.ShowPageHelper.assemblyNames.Add("Nine.Design.Core");
             Nine.Design.Clientbase.ShowPageHelper.namespaceNames.Add("Nine.Design.Core");
+            Nine.Design.Clientbase.ShowPageHelper.assemblyNames.Add("Nine.Design.PollingTool");
+            Nine.Design.Clientbase.ShowPageHelper.assemblyNames.Add("Nine.Design.PollingTool"); 
             Init();
             InitCommand();
 
@@ -71,7 +73,7 @@ namespace Nine.Design.Core
             );
 
             // 4. 打开二级页面（你的原有逻辑）
-            LayoutDisplayContent = ShowPageHelper.SelectFrameworkElement("Nine.Design.Core.Views.MainMune");
+            LayoutDisplayContent = ShowPageHelper.SelectFrameworkElement("Nine.Design.PollingTool.MainWindow");
         }
 
         private void MsgClickExecute()
